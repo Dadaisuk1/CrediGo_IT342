@@ -108,6 +108,21 @@
 
 ---
 
+### 🖇️Diagrams
+
+<div style="dispaly: flex; align-items: center; text-decoration: none;">
+  <h5>Entity Relationship Diagram</h5>
+  <a href="#">
+    <img src="https://github.com/Dadaisuk1/img_repo/blob/main/SVG/CrediGo Diagrams - Entity Relationship Diagram.svg" style="width:auto; height: 85vh;"/>
+  </a>
+  <h5>Use Case Diagram</h5>
+  <a href="#">
+    <img src="https://github.com/Dadaisuk1/img_repo/blob/main/SVG/CrediGo Diagrams - Use Case Diagram.svg" style="width: 830px; height: auto;"/>
+  </a>
+</div>
+
+---
+
 ### 🧑‍💻Developers Profile
 
 <div style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
@@ -130,13 +145,3 @@
   </a>
 </div>
 
----
-
-### 🖇️Diagrams
-
-<div style="dispaly: flex; align-items: center; text-decoration: none;">
-  <h1>Entity Relationship Diagram</h1>
-  <a href="#">
-    <img src="https://github.com/Dadaisuk1/img_repo/blob/main/SVG/CrediGo Diagrams - Entity Relationship Diagram.svg"/>
-  </a>
-</div>
