@@ -1,27 +1,27 @@
 package com.credigo.backend.config;
 
-import com.credigo.backend.security.jwt.JwtAuthenticationFilter; // Import the custom filter
-import org.springframework.beans.factory.annotation.Autowired; // Import Autowired
+import com.credigo.backend.security.jwt.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod; // Import HttpMethod
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity; // Optional: for @PreAuthorize
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy; // Import SessionCreationPolicy
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter; // Import this filter class
-
-// Removed: import static org.springframework.security.config.Customizer.withDefaults;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity // Optional: Enable if you plan to use @PreAuthorize on controller methods later
 public class SecurityConfig {
 
-  // Inject the custom JWT filter
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
   @Autowired
@@ -43,30 +43,28 @@ public class SecurityConfig {
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
-        // Disable CSRF protection (common for stateless REST APIs)
-        .csrf(AbstractHttpConfigurer::disable)
+        .csrf(AbstractHttpConfigurer::disable) // Disable CSRF
 
         // Configure authorization rules
         .authorizeHttpRequests(authz -> authz
-            // Allow unauthenticated access to auth endpoints
-            .requestMatchers("/api/auth/**").permitAll() // Allow all under /api/auth/
-            // Add other public endpoints here if needed
-            // .requestMatchers("/api/products/public/**").permitAll()
-            // Require authentication for all other requests
+            // Public endpoints: Authentication & Platform Reads
+            .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
+            .requestMatchers(HttpMethod.GET, "/api/platforms", "/api/platforms/**").permitAll() // Allow reading
+            // platforms
+            // Add other public GET endpoints here (e.g., for products)
+
+            // Admin endpoints: Platform Writes
+            .requestMatchers("/api/platforms/admin/**").hasRole("ADMIN") // Require ADMIN role for platform CUD
+
+            // Any other request must be authenticated
             .anyRequest().authenticated())
 
-        // Configure session management to be STATELESS
-        // Since we are using JWT, we don't need the server to manage sessions
+        // Configure stateless session management
         .sessionManagement(session -> session
-            .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+            .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-    // Remove HTTP Basic authentication (no longer needed)
-    // .httpBasic(withDefaults());
-
-    // Add the custom JWT filter BEFORE the standard
-    // UsernamePasswordAuthenticationFilter
-    // This ensures our token validation runs first for relevant requests
-    http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        // Add the custom JWT filter before the standard username/password filter
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
   }
