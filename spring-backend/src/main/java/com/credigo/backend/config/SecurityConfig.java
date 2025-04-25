@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod; // Import HttpMethod
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity; // Optional: for @PreAuthorize
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -19,7 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // Optional: Enable if you plan to use @PreAuthorize on controller methods later
+@EnableMethodSecurity // Optional: Enable if you plan to use @PreAuthorize
 public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -47,15 +47,22 @@ public class SecurityConfig {
 
         // Configure authorization rules
         .authorizeHttpRequests(authz -> authz
-            // Public endpoints: Authentication & Platform Reads
+            // --- Public Endpoints ---
             .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
             .requestMatchers(HttpMethod.GET, "/api/platforms", "/api/platforms/**").permitAll() // Allow reading
-            // platforms
-            // Add other public GET endpoints here (e.g., for products)
+                                                                                                // platforms
+            .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll() // Allow reading products
 
-            // Admin endpoints: Platform Writes
-            .requestMatchers("/api/platforms/admin/**").hasRole("ADMIN") // Require ADMIN role for platform CUD
+            // --- Admin Endpoints ---
+            .requestMatchers("/api/platforms/admin/**").hasRole("ADMIN") // Require ADMIN for platform CUD
+            .requestMatchers("/api/products/admin/**").hasRole("ADMIN") // Require ADMIN for product CUD
+            // Add other admin endpoints here
 
+            // --- Authenticated Endpoints (Any Role) ---
+            // Add endpoints here that require login but not necessarily ADMIN role
+            // Example: .requestMatchers("/api/wallet/**").authenticated()
+
+            // --- Default ---
             // Any other request must be authenticated
             .anyRequest().authenticated())
 
