@@ -22,9 +22,10 @@ public class Role {
   private Integer id;
 
   @Column(name = "role_name", nullable = false, unique = true, length = 50)
-  private String roleName; // e.g., "USER", "ADMIN"
+  private String roleName;
 
-  // Relationship to UserRoles (inverse side)
-  @OneToMany(mappedBy = "role")
-  private Set<UserRole> userRoles;
+  // Inverse side of the ManyToMany relationship (optional, not strictly needed if
+  // not navigating from Role to User)
+  // @ManyToMany(mappedBy = "roles")
+  // private Set<User> users;
 }
