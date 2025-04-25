@@ -135,6 +135,7 @@
 ### 🖇️Diagrams
 
 <div style="dispaly: flex; align-items: center; text-decoration: none;">
+  <h1>Entity Relationship Diagram</h1>
   <a href="#">
     <img src="https://github.com/Dadaisuk1/img_repo/blob/main/SVG/CrediGo Diagrams - Entity Relationship Diagram.svg"/>
   </a>
