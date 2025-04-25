@@ -83,7 +83,7 @@
       alt="Just click to the logo's to go the links."
     />
   </a>
-  <a href="https://lucid.app/lucidchart/59c36890-8e4d-48da-8aca-16e5c81e1054/edit?viewport_loc=-1024%2C-387%2C2217%2C1039%2C0_0&invitationId=inv_87b4ae2b-4f35-4f92-9fce-7e6728ac5c6f" style="text-decoration: none;">
+  <a href="https://lucid.app/lucidchart/59c36890-8e4d-48da-8aca-16e5c81e1054/edit?viewport_loc=-220%2C-200%2C2236%2C1674%2CzdS~mxMz_lio&invitationId=inv_87b4ae2b-4f35-4f92-9fce-7e6728ac5c6f" style="text-decoration: none;">
     <img
       src="https://github.com/Dadaisuk1/img_repo/blob/main/SVG/lucid.svg"
     />
@@ -93,7 +93,7 @@
       src="https://img.shields.io/badge/figma-%23F24E1E.svg?style=plastic&logo=figma&logoColor=white"
     />
   </a>
-  <a href="https://docs.google.com/spreadsheets/d/1WcfUJcijxxCVGjOvMWQ_dhoAO8QkyeCh3kKCO6VlsYo/edit?usp=sharing" style="text-decoration: none;">
+  <a href="https://docs.google.com/document/d/1U72SuQZ5cfljYjjBT3mihelRxjd3ayZ6WIrCID_x0Mc/edit?tab=t.0" style="text-decoration: none;">
     <img
       src="https://github.com/Dadaisuk1/Dadaisuk1/blob/main/media/Gahntt%20Chart.svg"
     />
