@@ -1,0 +1,49 @@
+# Java / Maven / Gradle
+target/
+*.class
+*.log
+.classpath
+.project
+.settings/
+.gradle/
+build/
+out/
+*.jar
+*.war
+*.ear
+
+# Node.js / React
+node_modules/
+npm-debug.log
+yarn-error.log
+build/
+.env
+.DS_Store
+
+# Android / Kotlin / Gradle
+*.iml
+.gradle/
+local.properties
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+build/
+captures/
+*.apk
+*.aab
+*.ap_
+*.a_
+*.dex
+
+# IDE specific files (IntelliJ, VSCode, Eclipse)
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
