@@ -103,7 +103,6 @@
     <img
       src="https://github.com/Dadaisuk1/img_repo/blob/main/SVG/ms_word.svg"
     />
-
   </a>
 </div>
 
@@ -128,5 +127,15 @@
       <img
         src="https://github.com/Dadaisuk1/img_repo/blob/main/SVG/profile_card3.svg"
       />
+  </a>
+</div>
+
+---
+
+### 🖇️Diagrams
+
+<div style="dispaly: flex; align-items: center; text-decoration: none;">
+  <a href="#">
+    <img src="https://github.com/Dadaisuk1/img_repo/blob/main/SVG/CrediGo Diagrams - Entity Relationship Diagram.svg"/>
   </a>
 </div>
