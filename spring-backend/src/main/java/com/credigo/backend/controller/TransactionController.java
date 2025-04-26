@@ -2,7 +2,7 @@ package com.credigo.backend.controller;
 
 import com.credigo.backend.dto.PurchaseRequest;
 import com.credigo.backend.dto.TransactionResponse;
-import com.credigo.backend.entity.TransactionStatus; // <-- *** THIS IMPORT IS CRUCIAL ***
+import com.credigo.backend.entity.TransactionStatus;
 import com.credigo.backend.service.TransactionService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
