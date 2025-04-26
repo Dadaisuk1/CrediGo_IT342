@@ -1,0 +1,31 @@
+package com.credigo.backend.dto;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+
+/**
+ * DTO representing the request from a user to add funds to their wallet.
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class WalletTopUpRequest {
+
+  @NotNull(message = "Amount cannot be null")
+  @DecimalMin(value = "50.00", message = "Minimum top-up amount is 50.00") // Example minimum
+  @Digits(integer = 6, fraction = 2, message = "Amount format is invalid") // Example: max 999999.99
+  private BigDecimal amount;
+
+  // Currency is often determined server-side (e.g., always PHP for this app),
+  // but could be included if multiple currencies were supported.
+  // private String currency = "PHP";
+
+}

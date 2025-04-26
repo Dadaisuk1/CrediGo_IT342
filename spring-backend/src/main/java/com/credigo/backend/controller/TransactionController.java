@@ -2,7 +2,7 @@ package com.credigo.backend.controller;
 
 import com.credigo.backend.dto.PurchaseRequest;
 import com.credigo.backend.dto.TransactionResponse;
-import com.credigo.backend.entity.TransactionStatus;
+import com.credigo.backend.entity.TransactionStatus; // <-- *** VERIFY THIS IMPORT IS PRESENT ***
 import com.credigo.backend.service.TransactionService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -62,7 +62,7 @@ public class TransactionController {
       // 3. Return the transaction details
       // Determine appropriate status based on transaction outcome
       HttpStatus status = switch (transactionResponse.getStatus()) {
-        // These enum constants require the import above
+        // Use unqualified enum constants because of the import
         case COMPLETED -> HttpStatus.CREATED;
         case PROCESSING -> HttpStatus.ACCEPTED;
         case FAILED -> HttpStatus.BAD_REQUEST;

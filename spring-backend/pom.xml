@@ -74,6 +74,7 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Weeb Token -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -90,6 +91,13 @@
 			<artifactId>jjwt-jackson</artifactId>
 			<scope>runtime</scope>
 			<version>0.12.6</version>
+		</dependency>
+
+		<!-- STRIPE API -->
+		<dependency>
+			<groupId>com.stripe</groupId>
+			<artifactId>stripe-java</artifactId>
+			<version>29.1.0-beta.3</version>
 		</dependency>
 	</dependencies>
 
