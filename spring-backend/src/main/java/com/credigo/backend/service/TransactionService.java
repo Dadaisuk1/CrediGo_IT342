@@ -1,7 +1,8 @@
 package com.credigo.backend.service;
 
 import com.credigo.backend.dto.PurchaseRequest;
-import com.credigo.backend.dto.TransactionResponse; // We'll need a DTO for the response
+import com.credigo.backend.dto.TransactionResponse;
+import java.util.List; // Import List
 
 /**
  * Service interface for handling purchase transactions.
@@ -22,7 +23,13 @@ public interface TransactionService {
    */
   TransactionResponse processPurchase(PurchaseRequest purchaseRequest, String username);
 
-  // Add methods later for fetching transaction history, etc.
-  // List<TransactionResponse> getTransactionHistory(String username);
+  /**
+   * Retrieves the transaction history for the specified user.
+   *
+   * @param username The username of the user whose history is to be retrieved.
+   * @return A list of TransactionResponse DTOs, ordered by most recent first.
+   * @throws RuntimeException if the user is not found.
+   */
+  List<TransactionResponse> getTransactionHistory(String username); // Add this method
 
 }
