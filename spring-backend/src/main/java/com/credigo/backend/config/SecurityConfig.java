@@ -51,7 +51,8 @@ public class SecurityConfig {
             .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
             .requestMatchers(HttpMethod.GET, "/api/platforms", "/api/platforms/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll() // Allow reading products
-            .requestMatchers("/api/payments/stripe/webhook").permitAll() // *** Allow Stripe webhook ***
+            .requestMatchers("/api/payments/stripe/webhook").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/products/{productId}/reviews").permitAll()
 
             // --- Admin Endpoints ---
             .requestMatchers("/api/platforms/admin/**").hasRole("ADMIN") // Require ADMIN for platform CUD
@@ -60,11 +61,12 @@ public class SecurityConfig {
 
             // --- Authenticated Endpoints (Any Role) ---
             // Examples:
-            // .requestMatchers("/api/wallet/**").authenticated()
-            // .requestMatchers("/api/transactions/purchase").authenticated() // Purchase
-            // needs auth
-            // .requestMatchers("/api/transactions/history").authenticated() // History
-            // needs auth
+            .requestMatchers("/api/wallet/**").authenticated()
+            .requestMatchers("/api/transactions/**").authenticated()
+            .requestMatchers(HttpMethod.POST, "/api/products/{productId}/reviews").authenticated()
+            .requestMatchers(HttpMethod.DELETE, "/api/products/{productId}/reviews").authenticated()
+            .requestMatchers("/api/transactions/purchase").authenticated()
+            .requestMatchers("/api/transactions/history").authenticated()
 
             // --- Default ---
             // Any other request must be authenticated
