@@ -4,7 +4,7 @@ import com.credigo.backend.security.jwt.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod; // Import HttpMethod
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -49,9 +49,9 @@ public class SecurityConfig {
         .authorizeHttpRequests(authz -> authz
             // --- Public Endpoints ---
             .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
-            .requestMatchers(HttpMethod.GET, "/api/platforms", "/api/platforms/**").permitAll() // Allow reading
-                                                                                                // platforms
+            .requestMatchers(HttpMethod.GET, "/api/platforms", "/api/platforms/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll() // Allow reading products
+            .requestMatchers("/api/payments/stripe/webhook").permitAll() // *** Allow Stripe webhook ***
 
             // --- Admin Endpoints ---
             .requestMatchers("/api/platforms/admin/**").hasRole("ADMIN") // Require ADMIN for platform CUD
@@ -59,8 +59,12 @@ public class SecurityConfig {
             // Add other admin endpoints here
 
             // --- Authenticated Endpoints (Any Role) ---
-            // Add endpoints here that require login but not necessarily ADMIN role
-            // Example: .requestMatchers("/api/wallet/**").authenticated()
+            // Examples:
+            // .requestMatchers("/api/wallet/**").authenticated()
+            // .requestMatchers("/api/transactions/purchase").authenticated() // Purchase
+            // needs auth
+            // .requestMatchers("/api/transactions/history").authenticated() // History
+            // needs auth
 
             // --- Default ---
             // Any other request must be authenticated

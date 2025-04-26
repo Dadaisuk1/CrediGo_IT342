@@ -21,7 +21,7 @@ import java.math.BigDecimal;
  * Implementation of the PaymentService interface using Stripe.
  */
 @Service // Marks this as a Spring service component
-public class PaymentServiceImpl implements PaymentService {
+public class PaymentServiceImpl implements PaymentService { // Ensure this implements PaymentService interface
 
   private static final Logger log = LoggerFactory.getLogger(PaymentServiceImpl.class);
 
@@ -69,34 +69,18 @@ public class PaymentServiceImpl implements PaymentService {
 
     // Convert amount from BigDecimal (e.g., 199.00) to smallest currency unit
     // (e.g., 19900 centavos for PHP)
-    // Stripe amounts are typically in cents, satang, centavos, etc.
-    // Assuming PHP (Philippine Peso) which has 100 centavos
     long amountInCentavos = topUpRequest.getAmount().multiply(new BigDecimal("100")).longValueExact();
     String currency = "php"; // Set your currency code
-
-    // Optional: Fetch user details if you want to associate the payment with a
-    // Stripe Customer object
-    // User user = userRepository.findByUsername(username).orElse(null);
-    // String customerEmail = (user != null) ? user.getEmail() : null;
-    // String stripeCustomerId = findOrCreateStripeCustomer(user); // Helper method
-    // needed
 
     PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
         .setAmount(amountInCentavos)
         .setCurrency(currency)
-        // Specify payment method types allowed (e.g., card, gcash)
-        // This list might need adjustment based on your Stripe account settings and
-        // region
+        // *** CHANGED BACK HERE: Specify gcash and card ***
         .addPaymentMethodType("card")
-        .addPaymentMethodType("gcash")
-        // .addPaymentMethodType("paymaya") // Check Stripe docs/dashboard if paymaya is
-        // directly supported this way
-        // Optional: Set a description or metadata
+        // .addPaymentMethodType("gcash")
+        // .addPaymentMethodType("paypal")
         .putMetadata("credigo_username", username)
         .putMetadata("transaction_type", "wallet_topup")
-        // Optional: Associate with a Stripe Customer ID if you manage customers in
-        // Stripe
-        // .setCustomer(stripeCustomerId)
         .build();
 
     try {
@@ -109,7 +93,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     } catch (StripeException e) {
       log.error("Stripe PaymentIntent creation failed for user {}: {}", username, e.getMessage());
-      // Handle specific Stripe exceptions if needed
+      // Pass Stripe's specific error message back
       throw new RuntimeException("Failed to create payment intent: " + e.getMessage(), e);
     } catch (Exception e) {
       log.error("Unexpected error during PaymentIntent creation for user {}: {}", username, e.getMessage(), e);
