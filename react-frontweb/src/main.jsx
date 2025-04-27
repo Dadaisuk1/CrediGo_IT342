@@ -11,7 +11,7 @@ import { Elements } from '@stripe/react-stripe-js';
 
 const stripePublishableKey = 'pk_test_51RI97KDxw5RRjqxMI5viaALUua9cxmK3iscxCC0eKE3Jg0KWmL9YDPCesI8O7szbwX3LvyXDYa4NkPFi6rsrPFw300Wo9jHMT0';
 if (!stripePublishableKey || !stripePublishableKey.startsWith('pk_test_')) {
-  console.warn("Stripe Publishable Key is missing or invalid. Please add your test key to main.jsx");
+  console.warn("Stripe Publishable Key is missing or invalid. Please add your test key to .env");
 }
 const stripePromise = loadStripe(stripePublishableKey);
 

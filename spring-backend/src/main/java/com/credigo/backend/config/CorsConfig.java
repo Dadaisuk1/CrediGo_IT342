@@ -13,10 +13,10 @@ public class CorsConfig {
       @Override
       public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-          .allowedOrigins("http://your-frontend.vercel.app")
-          .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-          .allowedHeaders("*");
-        }
-      };
+            .allowedOrigins("http://your-frontend.vercel.app")
+            .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+            .allowedHeaders("*");
+      }
+    };
   }
 }
