@@ -5,7 +5,7 @@ export default {
     extend: {
       colors: {
         "credigo-dark": "#232946",
-        "credigo-light": "#fffffe",
+        "credigo-light": "#ffffee",
         "credigo-accent": "#eebbc3",
         "credigo-button": "#EEBBC3",
         "credigo-input-bg": "#2a304d",
