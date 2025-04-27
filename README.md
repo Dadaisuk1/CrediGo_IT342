@@ -113,7 +113,7 @@
 <div style="dispaly: flex; align-items: center; text-decoration: none;">
   <h5>🔥Entity Relationship Diagram</h5>
   <a href="#">
-    <img src="https://github.com/Dadaisuk1/img_repo/blob/main/SVG/CrediGo Diagrams - Entity Relationship Diagram.svg" style="width:auto; height: 85vh;"/>
+    <img src="https://github.com/Dadaisuk1/img_repo/blob/main/SVG/CrediGo Diagrams - Entity Relationship Diagram.svg" style="width:830px; height: 87vh;"/>
   </a>
   <h5>🔥Use Case Diagram</h5>
   <a href="#">
