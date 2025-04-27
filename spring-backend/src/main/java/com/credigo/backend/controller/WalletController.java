@@ -56,7 +56,12 @@ public class WalletController {
       return ResponseEntity.ok(walletResponse);
     } catch (RuntimeException e) {
       log.error("Error fetching wallet for user {}: {}", currentUsername, e.getMessage());
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+      // Return 404 Not Found if the service threw an exception indicating not found
+      // Use more specific exception handling in a real app
+      if (e.getMessage().contains("not found")) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+      }
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching wallet.");
     } catch (Exception e) {
       log.error("Unexpected error fetching wallet for user {}: {}", currentUsername, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred.");
@@ -93,19 +98,25 @@ public class WalletController {
       log.info("PaymentIntent created successfully for user: {}", currentUsername);
       return ResponseEntity.ok(paymentResponse);
 
+    } catch (IllegalArgumentException e) {
+      // Catch specific validation errors from the service (e.g., invalid amount)
+      log.warn("Invalid request for create payment intent for user {}: {}", currentUsername, e.getMessage());
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     } catch (RuntimeException e) {
-      // Catch exceptions from the PaymentService (e.g., Stripe API errors)
+      // Catch other exceptions from the PaymentService (e.g., Stripe API errors)
       log.error("Failed to create PaymentIntent for user {}: {}", currentUsername, e.getMessage());
       // Return 500 Internal Server Error or a more specific error if available
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body("Failed to initiate payment: " + e.getMessage());
+    } catch (Exception e) {
+      // Catch any other unexpected errors
+      log.error("Unexpected error during PaymentIntent creation for user {}: {}", currentUsername, e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body("An unexpected error occurred while initiating payment.");
     }
   }
 
-  // --- TODO: Add Stripe Webhook Handler Endpoint ---
-  // This endpoint will receive notifications from Stripe about payment
-  // success/failure
-  // @PostMapping("/stripe/webhook")
-  // public ResponseEntity<String> handleStripeWebhook(@RequestBody String
-  // payload, @RequestHeader("Stripe-Signature") String sigHeader) { ... }
+  // --- TODO: Add Stripe Webhook Handler Endpoint (moved to PaymentController)
+  // ---
 
 }
