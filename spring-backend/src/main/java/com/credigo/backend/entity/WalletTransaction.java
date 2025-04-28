@@ -26,25 +26,21 @@ public class WalletTransaction {
   @JoinColumn(name = "wallet_id", nullable = false)
   private Wallet wallet;
 
-  @Enumerated(EnumType.STRING)
-  @Column(name = "transaction_type", nullable = false, length = 50)
-  private WalletTransactionType transactionType;
-
   @Column(nullable = false, precision = 12, scale = 2)
   private BigDecimal amount;
 
-  // Optional link to the purchase transaction
-  @Column(name = "related_transaction_id")
-  private Integer relatedTransactionId;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 50)
+  private WalletTransactionType type; // Example: TOP_UP or DEDUCTION
 
-  @Column(length = 255)
+  @Column(nullable = false, length = 255)
   private String description;
 
-  @Column(name = "transaction_timestamp", nullable = false, updatable = false)
-  private LocalDateTime transactionTimestamp;
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
   @PrePersist
   protected void onCreate() {
-    transactionTimestamp = LocalDateTime.now();
+    createdAt = LocalDateTime.now();
   }
 }

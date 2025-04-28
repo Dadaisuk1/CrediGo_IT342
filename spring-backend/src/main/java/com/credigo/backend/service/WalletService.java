@@ -1,24 +1,48 @@
 package com.credigo.backend.service;
 
-import com.credigo.backend.dto.WalletResponse;
+import com.credigo.backend.entity.*;
+import com.credigo.backend.repository.UserRepository;
+import com.credigo.backend.repository.WalletRepository;
+import com.credigo.backend.repository.WalletTransactionRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 
-/**
- * Service interface for managing User Wallets.
- */
-public interface WalletService {
+@Service
+public class WalletService {
 
-  WalletResponse getWalletByUsername(String username);
+  @Autowired
+  private WalletRepository walletRepository;
 
-  /**
-   * Retrieves the wallet details for the specified user.
-   *
-   * @param username The username of the user whose wallet is to be retrieved.
-   * @return WalletResponse DTO containing the wallet details.
-   * @throws RuntimeException if the user or their wallet is not found.
-   */
-  void addFundsToWallet(String username, BigDecimal amount, String PaymentIntentId, String description);
+  @Autowired
+  private WalletTransactionRepository walletTransactionRepository;
 
-  // Add other wallet-related methods later if needed (e.g., addFunds, deducted
-  // funds)
+  @Autowired
+  private UserRepository userRepository;
+
+  @Transactional
+  public void addFundsToWallet(String username, BigDecimal amount, String description) {
+    User user = userRepository.findByUsername(username)
+        .orElseThrow(() -> new RuntimeException("User not found: " + username));
+
+    Wallet wallet = user.getWallet();
+    if (wallet == null) {
+      wallet = new Wallet();
+      wallet.setUser(user);
+      wallet.setBalance(BigDecimal.ZERO);
+      wallet = walletRepository.save(wallet);
+    }
+
+    wallet.setBalance(wallet.getBalance().add(amount));
+    walletRepository.save(wallet);
+
+    WalletTransaction walletTransaction = new WalletTransaction();
+    walletTransaction.setWallet(wallet);
+    walletTransaction.setAmount(amount);
+    walletTransaction.setType(WalletTransactionType.TOP_UP);
+    walletTransaction.setDescription(description);
+    walletTransactionRepository.save(walletTransaction);
+  }
 }
