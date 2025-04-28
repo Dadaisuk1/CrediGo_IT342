@@ -93,7 +93,7 @@
       src="https://img.shields.io/badge/figma-%23F24E1E.svg?style=plastic&logo=figma&logoColor=white"
     />
   </a>
-  <a href="https://docs.google.com/document/d/1U72SuQZ5cfljYjjBT3mihelRxjd3ayZ6WIrCID_x0Mc/edit?tab=t.0" style="text-decoration: none;">
+  <a href="https://docs.google.com/spreadsheets/d/1WcfUJcijxxCVGjOvMWQ_dhoAO8QkyeCh3kKCO6VlsYo/edit?usp=sharing" style="text-decoration: none;">
     <img
       src="https://github.com/Dadaisuk1/Dadaisuk1/blob/main/media/Gahntt%20Chart.svg"
     />
@@ -144,4 +144,3 @@
       />
   </a>
 </div>
-
