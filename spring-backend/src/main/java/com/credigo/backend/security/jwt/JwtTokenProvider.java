@@ -63,7 +63,7 @@ public class JwtTokenProvider {
         .issuedAt(now)
         .expiration(expiryDate)
         .signWith(key, Jwts.SIG.HS256) // Use HS256 algorithm
-        // .claim("roles", userPrincipal.getAuthorities()) // Optionally add claims
+        .claim("roles", userPrincipal.getAuthorities()) // Optionally add claims
         .compact();
   }
 

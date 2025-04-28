@@ -1,68 +1,101 @@
 // src/pages/WalletPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect for potential future use
 import { useAuth } from '../context/AuthContext';
 import { TbCurrencyPeso } from "react-icons/tb";
-import { createWalletTopUpIntent } from '../services/api';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
-import TopUpForm from '../components/TopUpForm';
+import { createWalletTopUpIntent } from '../services/api'; // API function to create intent
 
-const stripePublishableKey = 'pk_test_YOUR_PUBLISHABLE_KEY_HERE'; // Replace with your actual key
-const stripePromise = loadStripe(stripePublishableKey);
+// Stripe imports (Ensure Elements provider is in main.jsx or wrap here)
+// import { loadStripe } from '@stripe/stripe-js'; // Only needed if provider is NOT in main.jsx
+// import { Elements } from '@stripe/react-stripe-js'; // Only needed if provider is NOT in main.jsx
+
+// Import the actual form component
+import TopUpForm from '../components/TopUpForm'; // *** Import the form ***
+
+// const stripePublishableKey = 'pk_test_YOUR_PUBLISHABLE_KEY_HERE'; // Key should be loaded in main.jsx
+// const stripePromise = loadStripe(stripePublishableKey); // Only needed if provider is NOT in main.jsx
 
 function WalletPage() {
   const { user, walletBalance, fetchWalletBalance, loading: authLoading, error: authError } = useAuth();
-  const [topUpAmount, setTopUpAmount] = useState('');
-  const [clientSecret, setClientSecret] = useState(null);
-  const [isProcessingTopUp, setIsProcessingTopUp] = useState(false);
-  const [topUpError, setTopUpError] = useState(null);
+  const [topUpAmount, setTopUpAmount] = useState(''); // Amount user wants to add
+  const [clientSecret, setClientSecret] = useState(null); // Stripe PaymentIntent client secret
+  const [isProcessingIntent, setIsProcessingIntent] = useState(false); // Loading state for creating intent
+  const [topUpError, setTopUpError] = useState(null); // Error state for top-up process
 
+  // Format balance for display
   const formattedBalance = walletBalance !== null
     ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(walletBalance)
     : 'Loading...';
 
+  // Handler for submitting the amount to get a clientSecret
   const handleTopUpSubmit = async (e) => {
     e.preventDefault();
-    setIsProcessingTopUp(true);
+    setIsProcessingIntent(true); // Start loading
     setTopUpError(null);
-    setClientSecret(null);
+    setClientSecret(null); // Reset previous secret
 
     const amount = parseFloat(topUpAmount);
     if (isNaN(amount) || amount <= 0) {
       setTopUpError("Please enter a valid positive amount.");
-      setIsProcessingTopUp(false);
+      setIsProcessingIntent(false);
+      return;
+    }
+    // Ensure minimum amount if needed (e.g., >= 50.00)
+    if (amount < 50.00) {
+      setTopUpError("Minimum top-up amount is P50.00.");
+      setIsProcessingIntent(false);
       return;
     }
 
     try {
+      // Call backend to create the Payment Intent
       const response = await createWalletTopUpIntent({ amount });
       if (response.data?.clientSecret) {
-        setClientSecret(response.data.clientSecret);
+        console.log("PaymentIntent created, clientSecret received.");
+        setClientSecret(response.data.clientSecret); // Set secret to show the Stripe form
       } else {
         throw new Error("Failed to get client secret from server.");
       }
     } catch (err) {
+      console.error("Failed to create PaymentIntent:", err);
       setTopUpError(err.response?.data || err.message || "Could not initiate top-up.");
     } finally {
-      setIsProcessingTopUp(false);
+      setIsProcessingIntent(false); // Stop loading
     }
   };
 
+  // --- Callback functions for TopUpForm ---
   const handlePaymentSuccess = () => {
-    setClientSecret(null);
-    setTopUpAmount('');
-    setTimeout(fetchWalletBalance, 1000);
+    console.log("TopUpForm reported payment success.");
+    setClientSecret(null); // Hide the Stripe form
+    setTopUpAmount('');    // Clear the amount input
+    setTopUpError(null);   // Clear any previous errors
+    // Optionally show a success message or rely on balance update
+    alert("Payment successful! Your balance will be updated shortly after the webhook is processed.");
+    // Fetch balance again after a short delay to allow webhook processing
+    setTimeout(fetchWalletBalance, 2000); // Refresh balance after 2 seconds
   };
 
   const handlePaymentCancel = () => {
-    setClientSecret(null);
-    setTopUpError("Payment cancelled.");
+    console.log("TopUpForm payment cancelled.");
+    setClientSecret(null); // Hide the Stripe form, show amount input again
+    setTopUpError(null);   // Clear errors
   };
+
+  const handlePaymentError = (errorMessage) => {
+    console.error("TopUpForm reported payment error:", errorMessage);
+    setTopUpError(errorMessage || "An error occurred during payment.");
+    // Keep clientSecret so user can potentially retry with the same intent?
+    // Or setClientSecret(null) to force starting over? Let's reset for simplicity.
+    setClientSecret(null);
+  };
+  // --- End Callbacks ---
 
   return (
     <div className="font-sans p-4 md:p-6 text-credigo-light">
-      <h1 className="text-3xl font-bold mb-6">My Wallet</h1>
+      <h1 className="text-3xl text-credigo-dark font-bold mb-6">My Wallet</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        {/* Balance Display Card */}
         <div className="bg-credigo-input-bg p-6 rounded-lg shadow-md border border-gray-700">
           <h2 className="text-xl font-semibold text-credigo-light mb-4">Current Balance</h2>
           {authLoading ? (
@@ -71,7 +104,6 @@ function WalletPage() {
             <p className="text-red-400">{authError}</p>
           ) : (
             <div className="flex items-center text-4xl font-bold text-credigo-light">
-              <TbCurrencyPeso size={36} className="mr-1 inline-block" />
               <span>{formattedBalance}</span>
             </div>
           )}
@@ -80,12 +112,15 @@ function WalletPage() {
           </button>
         </div>
 
+        {/* Top-up Card */}
         <div className="bg-credigo-input-bg p-6 rounded-lg shadow-md border border-gray-700">
           <h2 className="text-xl font-semibold text-credigo-light mb-4">Add Funds</h2>
 
+          {/* Conditionally render Amount Form OR Stripe Form */}
           {!clientSecret ? (
+            // --- Show Amount Input Form ---
             <>
-              <p className="text-sm text-gray-400 mb-4">Enter the amount you wish to add.</p>
+              <p className="text-sm text-gray-400 mb-4">Enter the amount you wish to add (Min P50.00).</p>
               <form onSubmit={handleTopUpSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="topUpAmount" className="block text-sm font-medium text-credigo-light/80 mb-1">Amount (PHP)</label>
@@ -94,12 +129,8 @@ function WalletPage() {
                       <TbCurrencyPeso className="h-5 w-5 text-gray-400" aria-hidden="true" />
                     </div>
                     <input
-                      type="number"
-                      name="topUpAmount"
-                      id="topUpAmount"
-                      step="0.01"
-                      min="50.00"
-                      required
+                      type="number" name="topUpAmount" id="topUpAmount"
+                      step="0.01" min="50.00" required
                       value={topUpAmount}
                       onChange={(e) => setTopUpAmount(e.target.value)}
                       className="block w-full rounded-lg border border-gray-600 bg-credigo-dark py-2 pl-10 pr-4 text-credigo-light placeholder-gray-400 focus:border-credigo-button focus:outline-none focus:ring-1 focus:ring-credigo-button sm:text-sm"
@@ -110,21 +141,27 @@ function WalletPage() {
                 {topUpError && <div className="text-red-400 text-sm">{topUpError}</div>}
                 <button
                   type="submit"
-                  disabled={isProcessingTopUp}
-                  className={`w-full flex justify-center px-4 py-2 text-sm font-semibold text-credigo-dark bg-credigo-button border border-transparent rounded-lg shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-credigo-input-bg focus:ring-credigo-button transition duration-150 ease-in-out ${isProcessingTopUp ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={isProcessingIntent}
+                  className={`w-full flex justify-center px-4 py-2 text-sm font-semibold text-credigo-dark bg-credigo-button border border-transparent rounded-lg shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-credigo-input-bg focus:ring-credigo-button transition duration-150 ease-in-out ${isProcessingIntent ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {isProcessingTopUp ? 'Processing...' : 'Proceed to Payment'}
+                  {isProcessingIntent ? 'Processing...' : 'Proceed to Payment'}
                 </button>
               </form>
             </>
           ) : (
-            <Elements stripe={stripePromise}>
+            // --- Show Stripe Form ---
+            // Elements provider should be wrapping App in main.jsx
+            <>
+              <p className="text-sm text-gray-400 mb-4">Enter your card details below to complete the top-up of {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(parseFloat(topUpAmount || '0'))}:</p>
+              {/* Render the TopUpForm component */}
               <TopUpForm
                 clientSecret={clientSecret}
+                amount={parseFloat(topUpAmount || '0')} // Pass amount to form
                 onPaymentSuccess={handlePaymentSuccess}
                 onPaymentCancel={handlePaymentCancel}
+                onPaymentError={handlePaymentError}
               />
-            </Elements>
+            </>
           )}
         </div>
       </div>
