@@ -54,7 +54,12 @@ export const AuthProvider = ({ children }) => {
             setToken(storedToken); // Ensure token state is set
             // Assume token contains enough info for basic user state
             // Or fetch full user details here if needed
-            setUser({ username: decodedToken.sub }); // Basic user info
+            setUser({
+              id: decodedToken.id,
+              username: decodedToken.sub,
+              email: decodedToken.email,
+              roles: decodedToken.roles || []
+            }); // Basic user info
             await fetchWalletBalance(); // Fetch wallet balance
           }
         } catch (e) {
