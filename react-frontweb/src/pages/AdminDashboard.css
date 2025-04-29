@@ -1,0 +1,48 @@
+.admin-dashboard {
+  display: flex;
+  height: 100vh;
+  background: #f8f9fa;
+}
+
+.admin-sidebar {
+  width: 220px;
+  background: #1a2236;
+  color: #fff;
+  padding: 2rem 1rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.admin-sidebar h2 {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.admin-sidebar nav ul {
+  list-style: none;
+  padding: 0;
+  width: 100%;
+}
+
+.admin-sidebar nav ul li {
+  margin-bottom: 1.2rem;
+}
+
+.admin-sidebar nav ul li a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 1.1rem;
+  transition: color 0.2s;
+}
+
+.admin-sidebar nav ul li a:hover {
+  color: #5eead4;
+}
+
+.admin-content {
+  flex: 1;
+  padding: 2rem;
+  background: #fff;
+  overflow-y: auto;
+}

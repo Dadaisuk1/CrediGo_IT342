@@ -1,7 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-
 // Import Layouts and Pages from their separate files
 import ProtectedLayout from './layouts/ProtectedLayout';
 import LoginPage from './pages/LoginPage';
@@ -14,6 +13,13 @@ import WishlistPage from './pages/WishlistPage';
 import AboutPage from './pages/AboutPage';
 import PaymentPage from './pages/PaymentPage';
 import Page404 from './pages/Page404';
+// --- Admin Pages ---
+import AdminDashboard from './pages/AdminDashboard';
+import AdminUsers from './pages/AdminUsers';
+import AdminTransactions from './pages/AdminTransactions';
+import AdminKYC from './pages/AdminKYC';
+import AdminWallet from './pages/AdminWallet';
+import AdminStats from './pages/AdminStats';
 
 function App() {
   const { isAuthenticated, loading } = useAuth();
@@ -31,7 +37,20 @@ function App() {
       {/* Add other public routes like /terms here if needed */}
       <Route path="/pay" element={<PaymentPage />} />
 
-      {/* --- Protected Routes (Render inside ProtectedLayout) --- */}
+      {/* --- Admin Routes (protected for now by isAuthenticated) --- */}
+      <Route
+        path="/admin"
+        element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/login" replace />}
+      >
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="transactions" element={<AdminTransactions />} />
+        <Route path="kyc" element={<AdminKYC />} />
+        <Route path="wallet" element={<AdminWallet />} />
+        <Route path="dashboard" element={<AdminStats />} />
+        <Route index element={<AdminStats />} />
+      </Route>
+
+      {/* --- Protected User Routes (Render inside ProtectedLayout) --- */}
       <Route
         path="/"
         element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/login" replace />}
