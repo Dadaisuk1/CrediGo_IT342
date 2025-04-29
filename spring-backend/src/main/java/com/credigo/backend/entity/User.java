@@ -43,6 +43,9 @@ public class User {
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
+  @Column(name = "active", nullable = false)
+  private Boolean active = true;
+
   // Relationships
   @ManyToMany(fetch = FetchType.EAGER, cascade = { CascadeType.PERSIST, CascadeType.MERGE })
   @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
@@ -59,6 +62,13 @@ public class User {
 
   @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
   private Set<Review> reviews;
+
+  // Transient field for balance (for admin DTO transfer)
+  @Transient
+  private java.math.BigDecimal balance;
+
+  public java.math.BigDecimal getBalance() { return balance; }
+  public void setBalance(java.math.BigDecimal balance) { this.balance = balance; }
 
   @PrePersist
   protected void onCreate() {

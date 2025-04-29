@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import credigoLogo from '../assets/images/credigo_icon.svg';
 import { Link } from 'react-router-dom';
 import { Eye, EyeClosed } from 'lucide-react'; // Import icons
+import AlertModal from '../components/AlertModal';
 
 // Google Icon component (keep as is)
 const GoogleIcon = () => (
@@ -22,29 +23,40 @@ function LoginPage() {
   const { login, loading, error, setError } = useAuth();
   // const navigate = useNavigate();
 
+  // Modal state
+  const [alertModal, setAlertModal] = useState({ open: false, title: '', message: '', type: 'info' });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     const success = await login({ usernameOrEmail, password });
     if (success) {
-      alert('Login Successful!');
+      setAlertModal({ open: true, title: 'Success', message: 'Login Successful!', type: 'success' });
       // navigate('/dashboard');
     }
   };
 
   const handleGoogleSignIn = () => {
-    alert('Google Sign-In not implemented yet!');
+    setAlertModal({ open: true, title: 'Info', message: 'Google Sign-In not implemented yet!', type: 'info' });
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4 py-12 font-sans bg-credigo-dark text-credigo-light">
-      <div className="w-full max-w-md p-8 space-y-6 bg-credigo-input-bg rounded-2xl shadow-xl border border-gray-700">
-        {/* Breadcrumbs */}
-        <nav className="text-sm mb-4 text-gray-400">
-          <Link to="/" className="hover:text-credigo-light">Home</Link>
-          <span className="mx-2">/</span>
-          <span className="cursor-default">Sign in</span>
-        </nav>
+    <>
+      <AlertModal
+        open={alertModal.open}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ ...alertModal, open: false })}
+      />
+      <div className="flex items-center justify-center min-h-screen px-4 py-12 font-sans bg-credigo-dark text-credigo-light">
+        <div className="w-full max-w-md p-8 space-y-6 bg-credigo-input-bg rounded-2xl shadow-xl border border-gray-700">
+          {/* Breadcrumbs */}
+          <nav className="text-sm mb-4 text-gray-400">
+            <Link to="/" className="hover:text-credigo-light">Home</Link>
+            <span className="mx-2">/</span>
+            <span className="cursor-default">Sign in</span>
+          </nav>
 
         {/* Header */}
         <div className="text-center">
@@ -148,6 +160,7 @@ function LoginPage() {
         </p>
       </div>
     </div>
+    </>
   );
 }
 

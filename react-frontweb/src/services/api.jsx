@@ -191,6 +191,62 @@ export const deleteReview = (productId) => {
 };
 
 
-// Export the configured Axios instance if needed directly elsewhere,
-// but prefer using the specific functions above.
+// --- PayMongo Payment API Call ---
+/**
+ * Creates a PayMongo payment intent via backend API
+ * @param {number} amount - Amount in PHP (as integer, e.g., 100 for PHP 100)
+ * @param {string} currency - Currency code (default: 'PHP')
+ * @returns {Promise<object>} - Payment intent response from backend
+ */
+export const createPaymentIntent = async (amount, currency = 'PHP') => {
+  try {
+    const response = await apiClient.post('/payments/create-payment-intent', { amount, currency });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// --- Admin Dashboard API Calls ---
+
+/**
+ * Fetches admin dashboard statistics.
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const getAdminDashboardStats = () => apiClient.get('/admin/stats');
+
+// --- Admin KYC API Calls ---
+
+/**
+ * Fetches all KYC requests (admin only).
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const getKYCRequests = () => apiClient.get('/admin/kyc');
+
+/**
+ * Approves a KYC request.
+ * @param {number} id - The KYC request ID.
+ * @param {string} [comment] - Optional admin comment.
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const approveKYCRequest = (id, comment = '') =>
+  apiClient.put(`/admin/kyc/${id}/approve`, null, { params: { comment } });
+
+/**
+ * Rejects a KYC request.
+ * @param {number} id - The KYC request ID.
+ * @param {string} [comment] - Optional admin comment.
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const rejectKYCRequest = (id, comment = '') =>
+  apiClient.put(`/admin/kyc/${id}/reject`, null, { params: { comment } });
+
+/**
+ * Deletes a KYC request.
+ * @param {number} id - The KYC request ID.
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const deleteKYCRequest = (id) =>
+  apiClient.delete(`/admin/kyc/${id}`);
+
 export default apiClient;

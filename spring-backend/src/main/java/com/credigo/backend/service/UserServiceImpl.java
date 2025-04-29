@@ -129,4 +129,135 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
         user.getPasswordHash(),
         authorities);
   }
+
+  // List all users
+  @Override
+  public java.util.List<User> findAllUsers() {
+    return userRepository.findAll();
+  }
+
+  // Create user (admin)
+  @Override
+  @Transactional
+  public User createUser(User user) {
+    if (userRepository.existsByUsername(user.getUsername())) {
+      throw new RuntimeException("Username already exists");
+    }
+    if (userRepository.existsByEmail(user.getEmail())) {
+      throw new RuntimeException("Email already exists");
+    }
+    // Hash password if provided
+    if (user.getPasswordHash() != null) {
+      user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
+    }
+    // Assign default USER role if not set
+    if (user.getRoles() == null || user.getRoles().isEmpty()) {
+      Role userRole = roleRepository.findByRoleName("USER")
+        .orElseThrow(() -> new RuntimeException("Default role not found"));
+      user.setRoles(Set.of(userRole));
+    }
+    // Create wallet if not present
+    if (user.getWallet() == null) {
+      Wallet wallet = new Wallet();
+      wallet.setBalance(BigDecimal.ZERO);
+      wallet.setUser(user);
+      user.setWallet(wallet);
+    }
+    return userRepository.save(user);
+  }
+
+  // Update user (admin)
+  @Override
+  @Transactional
+  public User updateUser(Long id, User updatedUser) {
+    User user = userRepository.findById(id.intValue())
+      .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+    user.setUsername(updatedUser.getUsername());
+    user.setEmail(updatedUser.getEmail());
+    user.setPhoneNumber(updatedUser.getPhoneNumber());
+    user.setDateOfBirth(updatedUser.getDateOfBirth());
+    // Update active status if provided
+    if (updatedUser.getActive() != null) {
+      user.setActive(updatedUser.getActive());
+    }
+    // Optionally update wallet balance if present
+    if (updatedUser.getBalance() != null) {
+      Wallet wallet = walletRepository.findByUser_Id(user.getId()).orElse(null);
+      if (wallet != null) {
+        wallet.setBalance(updatedUser.getBalance());
+        walletRepository.save(wallet);
+      }
+    }
+    // Only update password if provided
+    if (updatedUser.getPasswordHash() != null && !updatedUser.getPasswordHash().isBlank()) {
+      user.setPasswordHash(passwordEncoder.encode(updatedUser.getPasswordHash()));
+    }
+    // Optionally update roles if provided
+    if (updatedUser.getRoles() != null && !updatedUser.getRoles().isEmpty()) {
+      user.setRoles(updatedUser.getRoles());
+    }
+    return userRepository.save(user);
+  }
+
+  // Delete user (admin)
+  @Override
+  @Transactional
+  public void deleteUser(Long id) {
+    User user = userRepository.findById(id.intValue())
+      .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+    userRepository.delete(user);
+  }
+
+  // Promote user to admin
+  @Override
+  @Transactional
+  public void promoteToAdmin(Long userId) {
+    User user = userRepository.findById(userId.intValue())
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+    Role adminRole = roleRepository.findByRoleName("ADMIN")
+            .orElseThrow(() -> new RuntimeException("ADMIN role not found in database!"));
+    user.getRoles().add(adminRole);
+    userRepository.save(user);
+    log.info("Promoted user {} to ADMIN", user.getUsername());
+  }
+
+  // Demote user to regular user
+  @Override
+  @Transactional
+  public void demoteToUser(Long userId) {
+    User user = userRepository.findById(userId.intValue())
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+    Role adminRole = roleRepository.findByRoleName("ADMIN")
+            .orElseThrow(() -> new RuntimeException("ADMIN role not found in database!"));
+    if (!user.getRoles().remove(adminRole)) {
+      throw new RuntimeException("User does not have ADMIN role");
+    }
+    userRepository.save(user);
+    log.info("Demoted user {} to regular USER", user.getUsername());
+  }
+
+  // Map User to UserResponse DTO
+  @Override
+  public com.credigo.backend.dto.UserResponse mapToUserResponse(User user) {
+    if (user == null) return null;
+    com.credigo.backend.dto.UserResponse dto = new com.credigo.backend.dto.UserResponse();
+    dto.setId(user.getId());
+    dto.setUsername(user.getUsername());
+    dto.setEmail(user.getEmail());
+    dto.setPhoneNumber(user.getPhoneNumber());
+    dto.setDateOfBirth(user.getDateOfBirth());
+    dto.setCreatedAt(user.getCreatedAt());
+    // Add roles as a Set<String>
+    java.util.Set<String> roles = user.getRoles() != null ? user.getRoles().stream().map(r -> r.getRoleName()).collect(java.util.stream.Collectors.toSet()) : new java.util.HashSet<>();
+    dto.setRoles(roles);
+    dto.setActive(user.getActive());
+    // Fetch wallet balance
+    java.math.BigDecimal balance = java.math.BigDecimal.ZERO;
+    if (user.getWallet() != null && user.getWallet().getBalance() != null) {
+      balance = user.getWallet().getBalance();
+    }
+    dto.setBalance(balance);
+    return dto;
+  }
 }
+

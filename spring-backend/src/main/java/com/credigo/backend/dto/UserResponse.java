@@ -14,6 +14,9 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class UserResponse {
 
+  private Boolean active;
+  private java.math.BigDecimal balance;
+
   private Integer id; // The user's ID from the database
   private String username;
   private String email;
@@ -22,5 +25,13 @@ public class UserResponse {
   private LocalDateTime createdAt;
   // Notice: NO password field here!
 
-  // You might add roles here later if needed, e.g., private Set<String> roles;
+  private java.util.Set<String> roles;
+
+  public java.util.Set<String> getRoles() {
+    return roles;
+  }
+
+  public void setRoles(java.util.Set<String> roles) {
+    this.roles = roles;
+  }
 }

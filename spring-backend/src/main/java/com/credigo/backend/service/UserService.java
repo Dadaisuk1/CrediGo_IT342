@@ -13,5 +13,25 @@ public interface UserService {
    **/
   User registerUser(UserRegistrationRequest registrationRequest);
 
-  // Define other user-related service methods here later
+  // List all users
+  java.util.List<User> findAllUsers();
+
+  // Create user (admin)
+  User createUser(User user);
+
+  // Update user (admin)
+  User updateUser(Long id, User user);
+
+  // Delete user (admin)
+  void deleteUser(Long id);
+
+  // Promote user to admin
+  void promoteToAdmin(Long userId);
+
+  // Demote user to regular user
+  void demoteToUser(Long userId);
+
+  // Map User entity to UserResponse DTO
+  com.credigo.backend.dto.UserResponse mapToUserResponse(User user);
 }
+

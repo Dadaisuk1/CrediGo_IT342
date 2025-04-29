@@ -71,7 +71,7 @@ public class WalletController {
   // --- New Endpoint to Create Payment Intent for Wallet Top-up ---
   /**
    * Endpoint for an authenticated user to initiate a wallet top-up
-   * by creating a Stripe Payment Intent.
+   * by creating a PayMongo Payment Intent.
    *
    * @param topUpRequest DTO containing the amount to top up.
    * @return ResponseEntity containing PaymentResponse DTO (with client_secret) on
@@ -91,7 +91,7 @@ public class WalletController {
         topUpRequest.getAmount());
 
     try {
-      // 2. Call the payment service to create the Stripe Payment Intent
+      // 2. Call the payment service to create the PayMongo Payment Intent
       PaymentResponse paymentResponse = paymentService.createWalletTopUpPaymentIntent(topUpRequest, currentUsername);
 
       // 3. Return the PaymentResponse (containing client secret) with 200 OK status

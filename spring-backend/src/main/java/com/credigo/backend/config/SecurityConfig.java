@@ -52,7 +52,7 @@ public class SecurityConfig {
   CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
     // Specify allowed origins (your React app's URL)
-    configuration.setAllowedOrigins(List.of("http://localhost:5173")); // Allow frontend origin
+    configuration.setAllowedOrigins(List.of("http://localhost:5174")); // Allow frontend origin
     // Specify allowed methods (GET, POST, PUT, DELETE, etc.)
     configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
     // Specify allowed headers (e.g., Authorization, Content-Type)
@@ -85,8 +85,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/platforms", "/api/platforms/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/products/{productId}/reviews").permitAll()
-            .requestMatchers("/api/payments/stripe/webhook").permitAll() // Allow Stripe webhook
-
+            
             // Admin endpoints
             .requestMatchers("/api/platforms/admin/**").hasRole("ADMIN")
             .requestMatchers("/api/products/admin/**").hasRole("ADMIN")
