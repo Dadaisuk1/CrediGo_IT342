@@ -101,6 +101,11 @@
 			<version>1.0.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
+
 		<!-- STRIPE API -->
 		<dependency>
 			<groupId>com.stripe</groupId>

@@ -191,6 +191,20 @@ export const deleteReview = (productId) => {
 };
 
 
-// Export the configured Axios instance if needed directly elsewhere,
-// but prefer using the specific functions above.
+// --- PayMongo Payment API Call ---
+/**
+ * Creates a PayMongo payment intent via backend API
+ * @param {number} amount - Amount in PHP (as integer, e.g., 100 for PHP 100)
+ * @param {string} currency - Currency code (default: 'PHP')
+ * @returns {Promise<object>} - Payment intent response from backend
+ */
+export const createPaymentIntent = async (amount, currency = 'PHP') => {
+  try {
+    const response = await apiClient.post('/payments/create-payment-intent', { amount, currency });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
 export default apiClient;

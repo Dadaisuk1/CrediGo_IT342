@@ -12,6 +12,7 @@ import WalletPage from './pages/WalletPage';
 import HistoryPage from './pages/HistoryPage';
 import WishlistPage from './pages/WishlistPage';
 import AboutPage from './pages/AboutPage';
+import PaymentPage from './pages/PaymentPage';
 import Page404 from './pages/Page404';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
       <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/" replace />} />
       <Route path="/about" element={<AboutPage />} />
       {/* Add other public routes like /terms here if needed */}
+      <Route path="/pay" element={<PaymentPage />} />
 
       {/* --- Protected Routes (Render inside ProtectedLayout) --- */}
       <Route

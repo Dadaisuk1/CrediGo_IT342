@@ -1,5 +1,6 @@
 // src/components/Register.jsx // Or RegisterPage.jsx - match your filename
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import credigoLogo from '../assets/images/credigo_icon.svg'; // Import logo
 import { Link } from 'react-router-dom'; // Import Link
@@ -24,9 +25,9 @@ function RegisterPage() {
     // Removed phoneNumber and dateOfBirth
   });
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // State for password visibility
+  const [showPassword, setShowPassword] = useState(false);
   const { register, loading, error, setError } = useAuth();
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -53,7 +54,7 @@ function RegisterPage() {
     const success = await register(registrationData);
     if (success) {
       alert('Registration Successful! Please login.');
-      // navigate('/login');
+      navigate('/login');
       setFormData({ username: '', email: '', password: '' }); // Clear only required fields
       setTermsAccepted(false);
     }
