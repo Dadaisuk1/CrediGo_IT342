@@ -9,6 +9,14 @@
 		<version>3.4.5</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
+
+	<repositories>
+		<repository>
+			<id>jitpack.io</id>
+			<url>https://jitpack.io</url>
+		</repository>
+	</repositories>
+
 	<groupId>com.credigo</groupId>
 	<artifactId>credigo</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
@@ -75,7 +83,7 @@
 			<scope>test</scope>
 		</dependency>
 		
-		<!-- Weeb Token -->
+		<!-- Web Token -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -104,13 +112,6 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
-		</dependency>
-
-		<!-- STRIPE API -->
-		<dependency>
-			<groupId>com.stripe</groupId>
-			<artifactId>stripe-java</artifactId>
-			<version>29.1.0-beta.3</version>
 		</dependency>
 	</dependencies>
 
