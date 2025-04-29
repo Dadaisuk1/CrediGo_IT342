@@ -46,20 +46,6 @@ public class PaymentController {
     this.paymentService = paymentService;
   }
 
-  // NEW
-  @PostMapping("/save")
-  public ResponseEntity<String> savePayment(@RequestBody PaymentRequest paymentRequest) {
-    try {
-      // Save payment info
-      paymentService.savePayment(paymentRequest);
-      // Update wallet balance
-      paymentService.updateWalletBalance(paymentRequest.getUserId(), paymentRequest.getAmount());
-      return ResponseEntity.ok("Payment saved and wallet updated.");
-    } catch (Exception e) {
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
-    }
-  }
-
   /**
    * Endpoint for an authenticated user to initiate a wallet top-up
    * by creating a Stripe Payment Intent.
