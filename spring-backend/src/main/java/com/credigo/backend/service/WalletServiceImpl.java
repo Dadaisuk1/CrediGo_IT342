@@ -88,7 +88,7 @@ public class WalletServiceImpl implements WalletService {
     depositTx.setTransactionType(WalletTransactionType.DEPOSIT); // Use DEPOSIT type
     depositTx.setAmount(amount); // Store deposit as positive amount
     // Include paymentIntentId in description for idempotency check
-    depositTx.setDescription(description + " (Stripe PI: " + paymentIntentId + ")");
+    depositTx.setDescription(description + " (PayMongo PI: " + paymentIntentId + ")");
     // depositTx.setPaymentIntentId(paymentIntentId); // If dedicated field added
     walletTransactionRepository.save(depositTx);
     log.debug("Saved DEPOSIT wallet transaction for paymentIntentId: {}", paymentIntentId);

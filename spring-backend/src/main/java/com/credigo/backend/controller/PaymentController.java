@@ -4,12 +4,7 @@ import com.credigo.backend.dto.PaymentResponse; // Import PaymentResponse
 import com.credigo.backend.dto.WalletTopUpRequest; // Import WalletTopUpRequest
 import com.credigo.backend.service.PaymentService; // Import PaymentService
 import com.credigo.backend.service.WalletService; // Import WalletService
-import com.stripe.exception.SignatureVerificationException;
-import com.stripe.model.Event;
-import com.stripe.model.EventDataObjectDeserializer;
-import com.stripe.model.PaymentIntent;
-import com.stripe.model.StripeObject;
-import com.stripe.net.Webhook; // Import Webhook utility
+
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +19,7 @@ import org.springframework.web.bind.annotation.*; // Import RequestHeader, PostM
 import java.math.BigDecimal; // Import BigDecimal
 
 /**
- * REST Controller for handling incoming Stripe Webhooks and other payment
- * operations.
+ * REST Controller for handling incoming PayMongo Webhooks and other payment operations.
  */
 @RestController
 @RequestMapping("/api/payments") // Base path for payment-related endpoints
@@ -33,8 +27,8 @@ public class PaymentController {
 
   private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
 
-  @Value("${stripe.webhook.secret}") // Inject webhook secret from properties
-  private String endpointSecret;
+  @Value("${paymongo.secret.key}") // Inject PayMongo secret key from properties
+  private String paymongoSecretKey; // Used for API calls and optionally for webhook validation (if needed)
 
   private final WalletService walletService; // Inject WalletService
   private final PaymentService paymentService; // Inject PaymentService (needed for create-payment-intent)
@@ -48,7 +42,7 @@ public class PaymentController {
 
   /**
    * Endpoint for an authenticated user to initiate a wallet top-up
-   * by creating a Stripe Payment Intent.
+   * by creating a PayMongo Payment Intent.
    *
    * @param topUpRequest DTO containing the amount to top up.
    * @return ResponseEntity containing PaymentResponse DTO (with client_secret) on
@@ -68,7 +62,7 @@ public class PaymentController {
         topUpRequest.getAmount());
 
     try {
-      // Call the payment service to create the Stripe Payment Intent
+      // Call the payment service to create the PayMongo Payment Intent
       PaymentResponse paymentResponse = paymentService.createWalletTopUpPaymentIntent(topUpRequest, currentUsername);
 
       // Return the PaymentResponse (containing client secret) with 200 OK status
@@ -76,7 +70,7 @@ public class PaymentController {
       return ResponseEntity.ok(paymentResponse);
 
     } catch (RuntimeException e) {
-      // Catch exceptions from the PaymentService (e.g., Stripe API errors)
+      // Catch exceptions from the PaymentService (e.g., PayMongo API errors)
       log.error("Failed to create PaymentIntent for user {}: {}", currentUsername, e.getMessage());
       // Return 500 Internal Server Error or a more specific error if available
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
@@ -84,80 +78,65 @@ public class PaymentController {
   }
 
   /**
-   * Endpoint to receive webhook events from Stripe.
+   * Endpoint to receive webhook events from PayMongo.
    *
-   * @param payload   The raw request body (JSON payload from Stripe).
-   * @param sigHeader The value of the Stripe-Signature header.
+   * @param payload The raw request body (JSON payload from PayMongo).
    * @return ResponseEntity indicating success (200 OK) or failure.
    */
-  @PostMapping("/stripe/webhook")
-  public ResponseEntity<String> handleStripeWebhook(@RequestBody String payload,
-      @RequestHeader("Stripe-Signature") String sigHeader) {
-    // Debug log to confirm endpoint is hit
-    log.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    log.error("!!! STRIPE WEBHOOK ENDPOINT /api/payments/stripe/webhook WAS HIT !!!");
-    log.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-
-    log.debug("Received Stripe webhook event payload (first 100 chars): {}",
-        payload.substring(0, Math.min(payload.length(), 100))); // Log part of payload
-
-    if (endpointSecret == null || endpointSecret.isBlank()) {
-      log.error("Webhook processing failed: Stripe webhook secret is not configured.");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Webhook secret not configured on server.");
-    }
-
-    Event event;
+  @PostMapping("/paymongo/webhook")
+  public ResponseEntity<String> handlePayMongoWebhook(@RequestBody String payload) {
+    log.info("PayMongo webhook endpoint hit. Payload (first 200 chars): {}", payload.substring(0, Math.min(payload.length(), 200)));
 
     try {
-      // 1. Verify the event signature
-      event = Webhook.constructEvent(payload, sigHeader, endpointSecret);
-      log.debug("Webhook signature verified. Event ID: {}, Type: {}", event.getId(), event.getType());
+      // Parse the incoming JSON payload
+      com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+      java.util.Map<String, Object> webhookEvent = objectMapper.readValue(payload, java.util.Map.class);
 
-    } catch (SignatureVerificationException e) {
-      // Invalid signature
-      log.warn("Webhook signature verification failed: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid signature");
+      // PayMongo webhook event structure: { data: { id, type, attributes: {...} } }
+      java.util.Map<String, Object> data = (java.util.Map<String, Object>) webhookEvent.get("data");
+      if (data == null) {
+        log.error("PayMongo webhook: 'data' field missing in payload.");
+        return ResponseEntity.ok("Webhook received but missing data field.");
+      }
+      String eventType = (String) data.get("type");
+      java.util.Map<String, Object> attributes = (java.util.Map<String, Object>) data.get("attributes");
+      if (attributes == null) {
+        log.error("PayMongo webhook: 'attributes' missing in event data.");
+        return ResponseEntity.ok("Webhook received but missing attributes.");
+      }
+
+      // Handle only payment_intent.succeeded events for wallet top-up
+      if ("payment_intent.succeeded".equals(eventType)) {
+        String paymentIntentId = (String) data.get("id");
+        Long amount = attributes.get("amount") instanceof Integer ? ((Integer) attributes.get("amount")).longValue() : (Long) attributes.get("amount");
+        String currency = (String) attributes.get("currency");
+        String description = attributes.get("description") != null ? (String) attributes.get("description") : "Wallet top-up via PayMongo";
+        java.util.Map<String, Object> metadata = attributes.get("metadata") instanceof java.util.Map ? (java.util.Map<String, Object>) attributes.get("metadata") : null;
+        String username = metadata != null ? (String) metadata.get("credigo_username") : null;
+        String type = metadata != null ? (String) metadata.get("transaction_type") : null;
+
+        log.info("PayMongo webhook: payment_intent.succeeded for user={}, paymentIntentId={}, amount={}, currency={}", username, paymentIntentId, amount, currency);
+
+        // Only process wallet top-ups
+        if ("wallet_topup".equals(type) && username != null && !username.isBlank()) {
+          java.math.BigDecimal amountDecimal = java.math.BigDecimal.valueOf(amount).divide(new java.math.BigDecimal("100"));
+          try {
+            walletService.addFundsToWallet(username, amountDecimal, paymentIntentId, description);
+            log.info("Successfully credited wallet for user {} via PayMongo paymentIntent {}", username, paymentIntentId);
+          } catch (Exception e) {
+            log.error("Failed to credit wallet for user {}: {}", username, e.getMessage(), e);
+          }
+        } else {
+          log.warn("Ignoring PayMongo payment_intent.succeeded: metadata missing or not a wallet top-up. Metadata: {}", metadata);
+        }
+      } else {
+        log.warn("Unhandled PayMongo event type: {}", eventType);
+      }
     } catch (Exception e) {
-      log.error("Webhook payload parsing failed: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid payload");
+      log.error("Error processing PayMongo webhook: {}", e.getMessage(), e);
     }
-
-    // 2. Deserialize the event data object
-    EventDataObjectDeserializer dataObjectDeserializer = event.getDataObjectDeserializer();
-    StripeObject stripeObject = null;
-    if (dataObjectDeserializer.getObject().isPresent()) {
-      stripeObject = dataObjectDeserializer.getObject().get();
-    } else {
-      log.error("Webhook event data deserialization failed for event type: {}. Check Stripe API version compatibility.",
-          event.getType());
-      return ResponseEntity.ok("Webhook received but data deserialization failed.");
-    }
-
-    // 3. Handle the event based on its type
-    switch (event.getType()) {
-      case "payment_intent.succeeded":
-        PaymentIntent paymentIntent = (PaymentIntent) stripeObject;
-        log.info("Received PaymentIntent succeeded event! ID: {}", paymentIntent.getId());
-        // --- Call service to handle successful payment ---
-        handleSuccessfulPaymentIntent(paymentIntent); // Call the helper method
-        break;
-
-      case "payment_intent.payment_failed":
-        PaymentIntent failedPaymentIntent = (PaymentIntent) stripeObject;
-        log.warn("PaymentIntent failed! ID: {}, Reason: {}", failedPaymentIntent.getId(),
-            failedPaymentIntent.getLastPaymentError() != null ? failedPaymentIntent.getLastPaymentError().getMessage()
-                : "Unknown");
-        // TODO: Handle failed payment (e.g., notify user, update internal status)
-        break;
-
-      // ... handle other event types as needed (e.g., charge.refunded) ...
-
-      default:
-        log.warn("Unhandled Stripe event type received: {}", event.getType());
-    }
-
-    // 4. Acknowledge receipt of the event to Stripe successfully
-    return ResponseEntity.ok("Webhook received successfully");
+    // Always acknowledge webhook receipt (PayMongo expects 2xx)
+    return ResponseEntity.ok("Webhook received");
   }
 
   /**

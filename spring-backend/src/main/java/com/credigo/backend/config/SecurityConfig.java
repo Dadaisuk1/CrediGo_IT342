@@ -85,8 +85,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/platforms", "/api/platforms/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/products/{productId}/reviews").permitAll()
-            .requestMatchers("/api/payments/stripe/webhook").permitAll() // Allow Stripe webhook
-
+            
             // Admin endpoints
             .requestMatchers("/api/platforms/admin/**").hasRole("ADMIN")
             .requestMatchers("/api/products/admin/**").hasRole("ADMIN")

@@ -74,6 +74,7 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		
 		<!-- Weeb Token -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
@@ -91,6 +92,13 @@
 			<artifactId>jjwt-jackson</artifactId>
 			<scope>runtime</scope>
 			<version>0.12.6</version>
+		</dependency>
+
+		<!-- PAYMONGO API -->
+		<dependency>
+			<groupId>com.paymongo</groupId>
+			<artifactId>paymongo-java</artifactId>
+			<version>1.0.0</version>
 		</dependency>
 
 		<!-- STRIPE API -->
