@@ -179,7 +179,7 @@ const AdminUsers = () => {
                       {user.active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="py-2 px-4 border-b text-right">₱{typeof user.balance === 'number' ? user.balance.toFixed(2) : '0.00'}</td>
+                  <td className="py-2 px-4 border-b text-right">₱{!isNaN(Number(user.balance)) ? Number(user.balance).toFixed(2) : '0.00'}</td>
                   <td className="py-2 px-4 border-b flex gap-1">
                     <button
                       className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"

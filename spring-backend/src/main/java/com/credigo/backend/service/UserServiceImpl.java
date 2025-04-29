@@ -176,6 +176,18 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
     user.setEmail(updatedUser.getEmail());
     user.setPhoneNumber(updatedUser.getPhoneNumber());
     user.setDateOfBirth(updatedUser.getDateOfBirth());
+    // Update active status if provided
+    if (updatedUser.getActive() != null) {
+      user.setActive(updatedUser.getActive());
+    }
+    // Optionally update wallet balance if present
+    if (updatedUser.getBalance() != null) {
+      Wallet wallet = walletRepository.findByUser_Id(user.getId()).orElse(null);
+      if (wallet != null) {
+        wallet.setBalance(updatedUser.getBalance());
+        walletRepository.save(wallet);
+      }
+    }
     // Only update password if provided
     if (updatedUser.getPasswordHash() != null && !updatedUser.getPasswordHash().isBlank()) {
       user.setPasswordHash(passwordEncoder.encode(updatedUser.getPasswordHash()));
@@ -238,6 +250,13 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
     // Add roles as a Set<String>
     java.util.Set<String> roles = user.getRoles() != null ? user.getRoles().stream().map(r -> r.getRoleName()).collect(java.util.stream.Collectors.toSet()) : new java.util.HashSet<>();
     dto.setRoles(roles);
+    dto.setActive(user.getActive());
+    // Fetch wallet balance
+    java.math.BigDecimal balance = java.math.BigDecimal.ZERO;
+    if (user.getWallet() != null && user.getWallet().getBalance() != null) {
+      balance = user.getWallet().getBalance();
+    }
+    dto.setBalance(balance);
     return dto;
   }
 }

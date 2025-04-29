@@ -14,6 +14,9 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class UserResponse {
 
+  private Boolean active;
+  private java.math.BigDecimal balance;
+
   private Integer id; // The user's ID from the database
   private String username;
   private String email;
