@@ -22,5 +22,13 @@ public class UserResponse {
   private LocalDateTime createdAt;
   // Notice: NO password field here!
 
-  // You might add roles here later if needed, e.g., private Set<String> roles;
+  private java.util.Set<String> roles;
+
+  public java.util.Set<String> getRoles() {
+    return roles;
+  }
+
+  public void setRoles(java.util.Set<String> roles) {
+    this.roles = roles;
+  }
 }

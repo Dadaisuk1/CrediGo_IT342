@@ -4,39 +4,28 @@ import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
 // import adminService from '../api/adminService';
 
+import { getAdminDashboardStats } from '../services/api';
+
 const AdminStats = () => {
-  const [stats, setStats] = useState({
-    totalUsers: 1200,
-    activeUsers: 850,
-    totalProducts: 42,
-    totalTransactions: 3120,
-    recentTransactions: [
-      { id: 1001, user: 'alice', amount: 1000, date: '2025-04-29', status: 'success' },
-      { id: 1002, user: 'bob', amount: 500, date: '2025-04-29', status: 'pending' },
-      { id: 1003, user: 'carol', amount: 250, date: '2025-04-28', status: 'failed' },
-      { id: 1004, user: 'dan', amount: 1500, date: '2025-04-28', status: 'success' },
-      { id: 1005, user: 'eve', amount: 300, date: '2025-04-27', status: 'refunded' },
-    ]
-  });
-  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Uncomment and use when backend is ready
-  // useEffect(() => {
-  //   const fetchDashboardStats = async () => {
-  //     try {
-  //       setLoading(true);
-  //       const data = await adminService.getDashboardStats();
-  //       setStats(data);
-  //       setError(null);
-  //     } catch (err) {
-  //       setError('Failed to load dashboard data');
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-  //   fetchDashboardStats();
-  // }, []);
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        setLoading(true);
+        const response = await getAdminDashboardStats();
+        setStats(response.data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardStats();
+  }, []);
 
   if (loading) {
     return <div className="flex justify-center items-center h-full">Loading dashboard data...</div>;

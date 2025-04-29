@@ -67,13 +67,20 @@ function WalletPage() {
   const handlePaymentSuccess = () => {
     console.log("TopUpForm reported payment success.");
     setClientSecret(null); // Hide the Stripe form
-    setTopUpAmount('');    // Clear the amount input
     setTopUpError(null);   // Clear any previous errors
-    // Optionally show a success message or rely on balance update
+    // Demo: Immediately update wallet balance in UI
+    if (typeof setWalletBalance === 'function') {
+      const amt = parseFloat(topUpAmount);
+      if (!isNaN(amt) && amt > 0) {
+        setWalletBalance(prev => (prev !== null ? prev + amt : amt));
+      }
+    }
+    setTopUpAmount('');    // Clear the amount input
     alert("Payment successful! Your balance will be updated shortly after the webhook is processed.");
     // Fetch balance again after a short delay to allow webhook processing
     setTimeout(fetchWalletBalance, 2000); // Refresh balance after 2 seconds
   };
+
 
   const handlePaymentCancel = () => {
     console.log("TopUpForm payment cancelled.");
@@ -115,6 +122,37 @@ function WalletPage() {
         {/* Top-up Card */}
         <div className="bg-credigo-input-bg p-6 rounded-lg shadow-md border border-gray-700">
           <h2 className="text-xl font-semibold text-credigo-light mb-4">Add Funds</h2>
+
+          {/* --- MOCK WALLET ADJUSTMENT FORM (for demo, like AdminWallet) --- */}
+          {/*
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const amt = parseFloat(topUpAmount);
+            if (isNaN(amt) || amt === 0) {
+              alert('Please enter a valid non-zero amount.');
+              return;
+            }
+            // This assumes setWalletBalance is available from useAuth
+            setWalletBalance && setWalletBalance((prev) => (prev !== null ? prev + amt : amt));
+            alert(`Demo: Wallet ${amt > 0 ? 'credited' : 'debited'} by ₱${Math.abs(amt).toFixed(2)} (frontend only)`);
+          }} className="flex gap-2 mb-4">
+            <input
+              type="number"
+              step="0.01"
+              value={topUpAmount}
+              onChange={e => setTopUpAmount(e.target.value)}
+              placeholder="Amount (e.g. 100 or -50)"
+              className="p-2 rounded border border-gray-600 bg-gray-800 text-white flex-1"
+            />
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Adjust (Mock)
+            </button>
+          </form>
+          <p className="text-xs text-gray-500 mb-2">For demo only. This does not persist to backend.</p>
+          */}
 
           {/* Conditionally render Amount Form OR Stripe Form */}
           {!clientSecret ? (

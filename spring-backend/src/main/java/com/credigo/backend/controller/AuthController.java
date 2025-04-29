@@ -137,9 +137,9 @@ public class AuthController {
     dto.setDateOfBirth(user.getDateOfBirth());
     dto.setCreatedAt(user.getCreatedAt());
     // Example if returning roles:
-    // Set<String> roleNames = user.getRoles().stream().map(r -> "ROLE_" +
-    // r.getRoleName()).collect(Collectors.toSet());
-    // dto.setRoles(roleNames);
+    Set<String> roleNames = user.getRoles().stream().map(r -> "ROLE_" +
+    r.getRoleName()).collect(Collectors.toSet());
+    dto.setRoles(roleNames);
     return dto;
   }
 }

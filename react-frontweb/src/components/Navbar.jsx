@@ -1,6 +1,8 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import UserMenu from './UserMenu';
+import WalletMenu from './WalletMenu';
 import credigoLogo from '../assets/images/credigo_icon.svg';
 
 function Navbar() {
@@ -45,24 +47,16 @@ function Navbar() {
         <div className="flex items-center space-x-3">
           {isAuthenticated ? (
             <>
-              {/* User Info with Balance */}
-              <div className="hidden sm:flex items-center space-x-2 cursor-default">
-                <span className="text-sm capitalize font-bold">Hi, {user?.username}</span>
-                <button
-                  onClick={handleBalanceClick}
-                  className="flex items-center text-credigo-button hover:text-credigo-accent transition duration-150 text-sm font-semibold"
-                >
-                  {formattedBalance}
-                </button>
+              {/* User Menu Dropdown (avatar only) and Wallet Menu */}
+              <div className="hidden sm:flex items-center space-x-2">
+                <WalletMenu walletBalance={walletBalance} onWallet={() => navigate('/wallet')} />
+                <UserMenu
+                  username={user?.username}
+                  walletBalance={walletBalance}
+                  onLogout={logout}
+                  onSettings={() => navigate('/settings')}
+                />
               </div>
-
-              {/* Logout Button */}
-              <button
-                onClick={logout}
-                className="px-3 py-1 bg-credigo-button text-credigo-dark rounded-md hover:bg-opacity-90 text-sm font-semibold transition duration-150"
-              >
-                Logout
-              </button>
             </>
           ) : (
             <div className="hidden md:flex items-center space-x-3">
