@@ -54,7 +54,8 @@ public class SecurityConfig {
     // Add all allowed frontend origins
     configuration.setAllowedOrigins(List.of(
         "https://credi-go.vercel.app", 
-        "https://credi-go-git-master-darryls-projects-30121f65.vercel.app"
+        "https://credi-go-git-master-darryls-projects-30121f65.vercel.app",
+        "https://credi-go-darryls-projects-30121f65.vercel.app"
     ));
     // Specify allowed methods (GET, POST, PUT, DELETE, etc.)
     configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
