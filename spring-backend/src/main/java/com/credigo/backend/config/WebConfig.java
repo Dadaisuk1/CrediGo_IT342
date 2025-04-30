@@ -23,7 +23,10 @@ public class WebConfig {
         @Override
         public void addCorsMappings(CorsRegistry registry) {
           registry.addMapping("/api/**")
-              .allowedOrigins("https://credi-go.vercel.app")
+              .allowedOrigins(
+                  "https://credi-go.vercel.app", 
+                  "https://credi-go-git-master-darryls-projects-30121f65.vercel.app"
+              )
               .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
               .allowedHeaders("*")
               .allowCredentials(true);

@@ -51,8 +51,11 @@ public class SecurityConfig {
   @Bean
   CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
-    // Specify allowed origins (your React app's URL)
-    configuration.setAllowedOrigins(List.of("https://your-frontend.vercel.app")); // Allow frontend origin
+    // Add all allowed frontend origins
+    configuration.setAllowedOrigins(List.of(
+        "https://credi-go.vercel.app", 
+        "https://credi-go-git-master-darryls-projects-30121f65.vercel.app"
+    ));
     // Specify allowed methods (GET, POST, PUT, DELETE, etc.)
     configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
     // Specify allowed headers (e.g., Authorization, Content-Type)
