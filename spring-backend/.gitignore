@@ -34,3 +34,6 @@ build/
 
 ### PAYMONGO ###
 !**/paymongo-java/**
+
+!libs/
+!libs/**
