@@ -21,7 +21,7 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false); // State for password visibility
   const { login, loading, error, setError } = useAuth();
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
 
   // Modal state
   const [alertModal, setAlertModal] = useState({ open: false, title: '', message: '', type: 'info' });
@@ -32,7 +32,7 @@ function LoginPage() {
     const success = await login({ usernameOrEmail, password });
     if (success) {
       setAlertModal({ open: true, title: 'Success', message: 'Login Successful!', type: 'success' });
-      // navigate('/dashboard');
+      navigate('/'); // Redirect to home after successful login
     }
   };
 
@@ -49,6 +49,9 @@ function LoginPage() {
         type={alertModal.type}
         onClose={() => setAlertModal({ ...alertModal, open: false })}
       />
+      {error && (
+        <div className="text-red-500 text-sm mb-2 text-center">{typeof error === 'string' ? error : JSON.stringify(error)}</div>
+      )}
       <div className="flex items-center justify-center min-h-screen px-4 py-12 font-sans bg-credigo-dark text-credigo-light">
         <div className="w-full max-w-md p-8 space-y-6 bg-credigo-input-bg rounded-2xl shadow-xl border border-gray-700">
           {/* Breadcrumbs */}
