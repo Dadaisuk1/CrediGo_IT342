@@ -2,6 +2,8 @@ import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { isAdmin } from './utils/auth';
+import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 // Layouts
 const ProtectedLayout = lazy(() => import('./layouts/ProtectedLayout'));
@@ -45,6 +47,8 @@ function App() {
 
   return (
     <Suspense fallback={<div className="text-center mt-20 text-lg text-gray-600">Loading page...</div>}>
+      <SpeedInsights />
+      <Analytics />
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/" replace />} />
