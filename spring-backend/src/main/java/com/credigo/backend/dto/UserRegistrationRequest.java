@@ -33,8 +33,7 @@ public class UserRegistrationRequest {
 
   // Optional Fields
   // Optional: Add validation pattern for phone number if desired
-  // @Pattern(regexp = "^(\\+?[0-9\\s\\-()]*)$", message = "Invalid phone number
-  // format")
+  @Pattern(regexp = "^(\\+?[0-9\\s\\-()]*)$", message = "Invalid phone number format")
   @Size(max = 20, message = "Phone number cannot exceed 20 characters")
   private String phoneNumber; // Optional field
 

@@ -66,7 +66,7 @@ function App() {
         {/* Admin Routes */}
         <Route path="/admin" element={adminOnly ? <AdminLayout /> : <Navigate to="/not-authorized" replace />}>
           <Route index element={<AdminStats />} />
-          <Route path="dashboard" element={<AdminStats />} />
+          <Route path="dashboard" element={<AdminDashboard />} /> {/* Fix: Use AdminDashboard here */}
           <Route path="users" element={<AdminUsers />} />
           <Route path="transactions" element={<AdminTransactions />} />
           <Route path="products" element={<AdminProducts />} />

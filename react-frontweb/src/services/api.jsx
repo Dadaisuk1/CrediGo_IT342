@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://credigo-it342.onrender.com';
 
 // Create an Axios instance with default settings
 const apiClient = axios.create({
@@ -8,17 +9,19 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 seconds timeout
 });
 
 // Request interceptor to add JWT token to Authorization header
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken'); // Get token from storage
+    const token = localStorage.getItem('authToken');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
-      console.debug('Attaching token to request.');
     } else {
-      console.debug('No token found, sending request without Authorization header.');
+      console.warn('No token found. Redirecting to login.');
+      // Optional: Redirect to login if token is missing
+      window.location.href = '/login';
     }
     return config;
   },
@@ -30,16 +33,23 @@ apiClient.interceptors.request.use(
 
 // Response interceptor to handle global errors like 401 Unauthorized
 apiClient.interceptors.response.use(
-  (response) => {
-    return response; // Pass through successful responses
-  },
+  (response) => response, // Pass through successful responses
   (error) => {
     console.error('API Response Error:', error.response || error.message || error);
-    if (error.response && error.response.status === 401) {
-      console.error('Unauthorized request (401). Token might be invalid or expired.');
-      // Optional: Implement automatic logout/redirect
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
+    if (error.response) {
+      const { status } = error.response;
+      if (status === 401) {
+        console.error('Unauthorized request (401). Token might be invalid or expired.');
+        localStorage.removeItem('authToken');
+        window.location.href = '/login';
+      } else if (status === 404) {
+        toast.error('Resource not found (404).');
+        window.location.href = '/404';
+      } else if (status >= 500) {
+        toast.error('Server error. Please try again later.');
+      }
+    } else {
+      toast.error('Network error. Please check your connection.');
     }
     return Promise.reject(error);
   }
@@ -188,23 +198,6 @@ export const addReview = (productId, reviewData) => {
  */
 export const deleteReview = (productId) => {
   return apiClient.delete(`/products/${productId}/reviews`);
-};
-
-
-// --- PayMongo Payment API Call ---
-/**
- * Creates a PayMongo payment intent via backend API
- * @param {number} amount - Amount in PHP (as integer, e.g., 100 for PHP 100)
- * @param {string} currency - Currency code (default: 'PHP')
- * @returns {Promise<object>} - Payment intent response from backend
- */
-export const createPaymentIntent = async (amount, currency = 'PHP') => {
-  try {
-    const response = await apiClient.post('/payments/create-payment-intent', { amount, currency });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error.message;
-  }
 };
 
 // --- Admin Dashboard API Calls ---
