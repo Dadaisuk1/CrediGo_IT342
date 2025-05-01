@@ -1,6 +1,6 @@
 // src/pages/PaymentPage.jsx
 import React, { useState } from 'react';
-import { createPaymentIntent } from '../services/api';
+// import { createPaymentIntent } from '../services/api';
 
 const PaymentPage = () => {
   const [amount, setAmount] = useState('');
