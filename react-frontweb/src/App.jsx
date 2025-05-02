@@ -3,6 +3,7 @@ import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { Suspense, lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 
 // Layouts
 const ProtectedLayout = lazy(() => import('./layouts/ProtectedLayout'));
@@ -37,10 +38,11 @@ function App() {
   const adminOnly = isAuthenticated && isAdmin(token);
 
   return (
-    <Routes>
+    <Suspense fallback={<div className="text-center mt-20 text-lg text-gray-600">Loading page...</div>}>
+      <Routes>
       {/* Public Routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/" replace />} />
+      <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/" replace />} />
       <Route path="/about" element={<AboutPage />} />
       <Route path="/pay" element={<PaymentPage />} />
       <Route path="/not-authorized" element={<NotAuthorized />} />
@@ -68,7 +70,8 @@ function App() {
 
       {/* Catch-all */}
       <Route path="*" element={<Page404 />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
 
