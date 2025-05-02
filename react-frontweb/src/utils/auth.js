@@ -1,4 +1,4 @@
-import { default as jwtDecode } from 'jwt-decode';
+import jwtDecode from 'jwt-decode';
 
 export function isAdmin(token) {
   if (!token) return false;

@@ -1,6 +1,6 @@
 import React from 'react';
+import jwtDecode from 'jwt-decode';
 import { useAuth } from '../context/AuthContext';
-import { jwtDecode } from 'jwt-decode';
 
 function HomePage() {
   const { user, token } = useAuth();
