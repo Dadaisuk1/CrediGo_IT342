@@ -22,10 +22,12 @@ public class WebConfig {
       return new WebMvcConfigurer() {
         @Override
         public void addCorsMappings(CorsRegistry registry) {
-          registry.addMapping("/api/**")  
+          registry.addMapping("/https://credigo-it342.onrender.com/**")  
               .allowedOrigins(
                   "https://credi-go.vercel.app", 
-                  "https://credi-go-darryls-projects-30121f65.vercel.app"
+                  "https://credi-go-darryls-projects-30121f65.vercel.app",
+                  "https://credi-go-git-master-darryls-projects-30121f65.vercel.app",
+                  "https://credi-agbmmwnc3-darryls-projects-30121f65.vercel.app"
               )
               .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
               .allowedHeaders("*")
