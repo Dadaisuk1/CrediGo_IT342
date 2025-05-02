@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import credigoLogo from '../assets/images/credigo_icon.svg';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeClosed } from 'lucide-react'; // Import icons
 import AlertModal from '../components/AlertModal';
 
