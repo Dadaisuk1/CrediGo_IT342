@@ -1,10 +1,10 @@
 // src/components/LoginPage.jsx
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import credigoLogo from '../assets/images/credigo_icon.svg';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeClosed } from 'lucide-react'; // Import icons
 import AlertModal from '../components/AlertModal';
+import { useAuth } from '../context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeClosed } from 'lucide-react';
 
 // Google Icon component (keep as is)
 const GoogleIcon = () => (
@@ -29,10 +29,16 @@ function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+  
     const success = await login({ usernameOrEmail, password });
+  
     if (success) {
       setAlertModal({ open: true, title: 'Success', message: 'Login Successful!', type: 'success' });
-      navigate('/'); // Redirect to home after successful login
+  
+      // Delay redirect to allow React to re-render with new auth state
+      setTimeout(() => {
+        navigate('/');
+      }, 500); // Small delay to ensure token is updated
     }
   };
 

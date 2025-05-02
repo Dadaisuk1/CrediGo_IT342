@@ -1,9 +1,8 @@
-import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+// src/App.jsx
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import { isAdmin } from './utils/auth';
-// import { SpeedInsights } from "@vercel/speed-insights/react";
-// import { Analytics } from "@vercel/analytics/react";
+import { Suspense, lazy } from 'react';
 
 // Layouts
 const ProtectedLayout = lazy(() => import('./layouts/ProtectedLayout'));
@@ -34,52 +33,42 @@ const AdminStats = lazy(() => import('./pages/AdminStats'));
 const AdminProducts = lazy(() => import('./pages/AdminProducts'));
 
 function App() {
-  const { isAuthenticated, loading, token } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   const adminOnly = isAuthenticated && isAdmin(token);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-credigo-dark text-credigo-light">
-        Loading...
-      </div>
-    );
-  }
-
   return (
-    <Suspense fallback={<div className="text-center mt-20 text-lg text-gray-600">Loading page...</div>}>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/" replace />} />
-        <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/" replace />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/pay" element={<PaymentPage />} />
-        <Route path="/not-authorized" element={<NotAuthorized />} />
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/pay" element={<PaymentPage />} />
+      <Route path="/not-authorized" element={<NotAuthorized />} />
 
-        {/* Protected User Routes */}
-        <Route path="/" element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/login" replace />}>
-          <Route index element={<HomePage />} />
-          <Route path="products" element={<ProductsPage />} />
-          <Route path="wallet" element={<WalletPage />} />
-          <Route path="history" element={<HistoryPage />} />
-          <Route path="wishlist" element={<WishlistPage />} />
-          <Route path="about" element={<AboutPage />} />
-        </Route>
+      {/* Protected User Routes */}
+      <Route path="/" element={<ProtectedLayout />}>
+        <Route index element={<HomePage />} />
+        <Route path="products" element={<ProductsPage />} />
+        <Route path="wallet" element={<WalletPage />} />
+        <Route path="history" element={<HistoryPage />} />
+        <Route path="wishlist" element={<WishlistPage />} />
+        <Route path="about" element={<AboutPage />} />
+      </Route>
 
-        {/* Admin Routes */}
-        <Route path="/admin" element={adminOnly ? <AdminLayout /> : <Navigate to="/not-authorized" replace />}>
-          <Route index element={<AdminStats />} />
-          <Route path="dashboard" element={<AdminDashboard />} /> {/* Fix: Use AdminDashboard here */}
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="transactions" element={<AdminTransactions />} />
-          <Route path="products" element={<AdminProducts />} />
-          <Route path="kyc" element={<AdminKYC />} />
-          <Route path="wallet" element={<AdminWallet />} />
-        </Route>
+      {/* Admin Routes */}
+      <Route path="/admin" element={adminOnly ? <AdminLayout /> : <NotAuthorized />}>
+        <Route index element={<AdminStats />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="transactions" element={<AdminTransactions />} />
+        <Route path="products" element={<AdminProducts />} />
+        <Route path="kyc" element={<AdminKYC />} />
+        <Route path="wallet" element={<AdminWallet />} />
+      </Route>
 
-        {/* Catch-all */}
-        <Route path="*" element={<Page404 />} />
-      </Routes>
-    </Suspense>
+      {/* Catch-all */}
+      <Route path="*" element={<Page404 />} />
+    </Routes>
   );
 }
 

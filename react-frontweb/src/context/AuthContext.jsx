@@ -1,78 +1,68 @@
 // src/context/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-// Import API functions (assuming getWallet is exported from api.js)
-import { loginUser as apiLogin, registerUser as apiRegister, getWallet as apiGetWallet } from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 
-// Create the context
+// Import API functions (update path as needed)
+import {
+  loginUser as apiLogin,
+  registerUser as apiRegister,
+  getWallet as apiGetWallet
+} from '../services/api';
+
 const AuthContext = createContext(null);
 
-// Create the provider component
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // Holds user info { id, username, email, roles }
-  const [token, setToken] = useState(localStorage.getItem('authToken')); // Holds JWT token
-  const [walletBalance, setWalletBalance] = useState(null); // *** State for wallet balance ***
-  const [loading, setLoading] = useState(true); // Indicate initial loading state
-  const [error, setError] = useState(null); // Holds login/registration/fetch errors
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('authToken'));
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Function to fetch wallet balance (memoized with useCallback)
+  // Fetch wallet balance
   const fetchWalletBalance = useCallback(async () => {
-    if (!token) return; // Don't fetch if no token
-    console.log("Attempting to fetch wallet balance...");
+    if (!token) return;
     try {
-      const response = await apiGetWallet(); // Call API
-      if (response.data && response.data.balance !== undefined) {
+      const response = await apiGetWallet();
+      if (response?.data?.balance !== undefined) {
         setWalletBalance(response.data.balance);
-        console.log("Wallet balance fetched:", response.data.balance);
-      } else {
-        throw new Error("Invalid wallet data received");
       }
     } catch (err) {
-      console.error("Failed to fetch wallet balance:", err);
-      // Don't necessarily clear auth state here, maybe just show error
-      setError("Could not load wallet balance.");
-      setWalletBalance(null); // Reset balance on error
+      console.error("Failed to fetch wallet balance:", err.message);
+      setWalletBalance(null);
     }
-  }, [token]); // Dependency: re-fetch if token changes (login/logout)
+  }, [token]);
 
-
-  // Effect to check token validity and fetch user/wallet data on initial load
+  // Validate token and fetch initial data
   useEffect(() => {
-    const validateTokenAndFetchData = async () => {
-      setLoading(true);
+    const validateToken = async () => {
       const storedToken = localStorage.getItem('authToken');
       if (storedToken) {
         try {
-          const decodedToken = jwtDecode(storedToken);
+          const decoded = jwtDecode(storedToken);
           const currentTime = Date.now() / 1000;
 
-          if (decodedToken.exp < currentTime) {
-            console.warn("Auth token expired on load.");
-            logout(); // Use logout function to clear state
+          if (decoded.exp < currentTime) {
+            logout(); // Token expired
           } else {
-            console.log("User token valid on load.");
-            setToken(storedToken); // Ensure token state is set
-            // Assume token contains enough info for basic user state
-            // Or fetch full user details here if needed
+            setToken(storedToken);
             setUser({
-              id: decodedToken.id,
-              username: decodedToken.sub,
-              email: decodedToken.email,
-              roles: decodedToken.roles || []
-            }); // Basic user info
-            await fetchWalletBalance(); // Fetch wallet balance
+              id: decoded.id || decoded.sub,
+              username: decoded.sub,
+              email: decoded.email || decoded.username || '',
+              roles: decoded.roles || decoded.authorities || []
+            });
+            await fetchWalletBalance();
           }
         } catch (e) {
-          console.error("Error processing token on load:", e);
-          logout(); // Clear state if token is invalid
+          console.error("Invalid token:", e.message);
+          logout();
         }
       }
       setLoading(false);
     };
 
-    validateTokenAndFetchData();
-  }, [fetchWalletBalance]); // Rerun this effect only once on mount essentially, but include fetchWalletBalance
-
+    validateToken();
+  }, [fetchWalletBalance]);
 
   // Login function
   const login = async (credentials) => {
@@ -80,68 +70,59 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const response = await apiLogin(credentials);
-      if (response.data && response.data.token) {
-        const newToken = response.data.token;
-        const decoded = jwtDecode(newToken);
+      const newToken = response.data.token;
+      if (!newToken) throw new Error("No token received");
 
-        localStorage.setItem('authToken', newToken);
-        setToken(newToken);
-        setUser({
-          id: response.data.userId,
-          username: response.data.username,
-          email: response.data.email,
-          roles: response.data.roles || []
-        });
-        console.log("Login successful:", response.data.username);
-        await fetchWalletBalance(); // Fetch wallet balance immediately after login
-        setLoading(false);
-        return true;
-      } else {
-        throw new Error(response.data?.message || "Login failed: No token received.");
-      }
+      const decoded = jwtDecode(newToken);
+      localStorage.setItem('authToken', newToken);
+      setToken(newToken);
+      setUser({
+        id: decoded.id || decoded.sub,
+        username: decoded.sub,
+        email: decoded.email || decoded.username || '',
+        roles: decoded.roles || decoded.authorities || []
+      });
+
+      await fetchWalletBalance();
+      setLoading(false);
+      return true;
     } catch (err) {
-      const errorMessage = err.response?.data || err.message || "Login failed.";
-      console.error("Login error:", errorMessage);
-      setError(errorMessage);
+      const message = err.response?.data?.message || err.message || "Login failed";
+      setError(message);
       setLoading(false);
       return false;
     }
   };
 
-  // Registration function
+  // Register function
   const register = async (userData) => {
     setError(null);
     setLoading(true);
     try {
       const response = await apiRegister(userData);
-      console.log("Registration successful:", response.data);
       setLoading(false);
-      return true;
+      return response;
     } catch (err) {
-      const errorMessage = err.response?.data || err.message || "Registration failed.";
-      console.error("Registration error:", errorMessage);
-      setError(errorMessage);
+      const message = err.response?.data?.message || err.message || "Registration failed";
+      setError(message);
       setLoading(false);
       return false;
     }
   };
 
-
   // Logout function
   const logout = () => {
-    console.log("Logging out user.");
     localStorage.removeItem('authToken');
     setUser(null);
     setToken(null);
-    setWalletBalance(null); // Clear wallet balance on logout
-    setError(null); // Clear errors on logout
+    setWalletBalance(null);
+    setError(null);
   };
 
-  // Value provided to consuming components
   const value = {
     user,
     token,
-    walletBalance, // Expose wallet balance
+    walletBalance,
     isAuthenticated: !!user,
     loading,
     error,
@@ -149,21 +130,24 @@ export const AuthProvider = ({ children }) => {
     logout,
     register,
     setError,
-    fetchWalletBalance // Expose function to manually refresh if needed
+    fetchWalletBalance
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children} {/* Optionally render children only after initial load check */}
-      {/* Or just: {children} */}
+      {!loading ? children : (
+        <div className="flex justify-center items-center h-screen bg-gray-900 text-white">
+          Loading...
+        </div>
+      )}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook to use the AuthContext
+// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
