@@ -12,10 +12,6 @@
 
 	<repositories>
 		<repository>
-			<id>jitpack.io</id>
-			<url>https://jitpack.io</url>
-		</repository>
-		<repository>
 			<id>paymongo-repo</id>
 			<url>https://github.com/paymongo/paymongo-java</url>
 		</repository>
@@ -107,14 +103,6 @@
 			<version>0.12.6</version>
 		</dependency>
 
-		<!-- PAYMONGO API -->
-		<!-- <dependency>
-			<groupId>com.paymongo</groupId>
-			<artifactId>paymongo-java</artifactId>
-			<version>1.0.0</version>
-			<scope>system</scope>
-			<systemPath>${project.basedir}/libs/paymongo-java-1.0.0.jar</systemPath>
-		</dependency> -->
 		<dependency>
 			<groupId>com.paymongo</groupId>
 			<artifactId>paymongo-java</artifactId>
