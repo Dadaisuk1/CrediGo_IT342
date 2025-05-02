@@ -25,10 +25,10 @@ public class Product {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "platform_id", nullable = false)
-  private Platform platform; // The Game this top-up belongs to
+  private Platform platform;
 
   @Column(nullable = false, length = 150)
-  private String name; // e.g., "100 Diamonds", "Weekly Pass"
+  private String name;
 
   @Column(columnDefinition = "TEXT")
   private String description;
