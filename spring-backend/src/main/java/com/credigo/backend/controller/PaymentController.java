@@ -1,8 +1,8 @@
 package com.credigo.backend.controller;
 
-import io.github.cdimascio.dotenv.Dotenv;
 
 import com.credigo.backend.dto.PaymentResponse;
+import org.springframework.beans.factory.annotation.Value;
 import com.credigo.backend.dto.WalletTopUpRequest;
 import com.credigo.backend.service.PaymentService;
 import com.credigo.backend.service.WalletService;
@@ -14,7 +14,6 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -34,12 +33,10 @@ import java.util.HexFormat; // Requires Java 17+
 @RestController
 @RequestMapping("/api/payments")
 public class PaymentController {
-    private String paymongoWeebookSecretKey;
-
     private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
 
-    // Load the webhook secret key from .env using Dotenv
-    private String paymongoWebhookSecretKey; // Use this for verification
+    @Value("${paymongo.webhook.secret.key}")
+    private String paymongoWebhookSecretKey;
 
     private final WalletService walletService;
     private final PaymentService paymentService;
@@ -50,8 +47,6 @@ public class PaymentController {
         this.walletService = walletService;
         this.paymentService = paymentService;
         this.objectMapper = objectMapper;
-        Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
-        this.paymongoWebhookSecretKey = dotenv.get("PAYMONGO_WEBHOOK_SECRET_KEY", "");
         log.info("PayMongo Webhook Secret Key Loaded: {}", paymongoWebhookSecretKey != null && !paymongoWebhookSecretKey.isEmpty() ? "Yes" : "No");
     }
 
