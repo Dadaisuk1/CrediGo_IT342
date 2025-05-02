@@ -18,4 +18,10 @@ public class TestController {
     String currentPrincipalName = authentication.getName();
     return ResponseEntity.ok("Hello, authenticated user: " + currentPrincipalName);
   }
+
+  @GetMapping("/env")
+  public ResponseEntity<java.util.Map<String, String>> getEnvVars() {
+    // Return all environment variables
+    return ResponseEntity.ok(System.getenv());
+  }
 }
