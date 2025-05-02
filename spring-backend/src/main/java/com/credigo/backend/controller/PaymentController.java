@@ -1,5 +1,7 @@
 package com.credigo.backend.controller;
 
+import io.github.cdimascio.dotenv.Dotenv;
+
 import com.credigo.backend.dto.PaymentResponse;
 import com.credigo.backend.dto.WalletTopUpRequest;
 import com.credigo.backend.service.PaymentService;
@@ -12,7 +14,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -32,11 +34,11 @@ import java.util.HexFormat; // Requires Java 17+
 @RestController
 @RequestMapping("/api/payments")
 public class PaymentController {
+    private String paymongoWeebookSecretKey;
 
     private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
 
-    // Inject the webhook secret key from application properties
-    @Value("${paymongo.webhook.secret.key}")
+    // Load the webhook secret key from .env using Dotenv
     private String paymongoWebhookSecretKey; // Use this for verification
 
     private final WalletService walletService;
@@ -48,6 +50,9 @@ public class PaymentController {
         this.walletService = walletService;
         this.paymentService = paymentService;
         this.objectMapper = objectMapper;
+        Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+        this.paymongoWebhookSecretKey = dotenv.get("PAYMONGO_WEBHOOK_SECRET_KEY", "");
+        log.info("PayMongo Webhook Secret Key Loaded: {}", paymongoWebhookSecretKey != null && !paymongoWebhookSecretKey.isEmpty() ? "Yes" : "No");
     }
 
     @PostMapping("/create-payment-intent")
@@ -146,12 +151,13 @@ public class PaymentController {
             // The previous code checked for "payment_intent.succeeded"
             // Adjust this 'if' condition based on the actual event PayMongo sends for your
             // payment flow.
+            log.info("PayMongo webhook received event type: {}", eventType);
             if ("payment.paid".equals(eventType)) { // Adjusted to match your webhook config
+                processPaymentPaidEvent(attributes);
                 log.info("Processing {} event.", eventType);
-                processSuccessfulPayment(attributes); // Renamed processing method
-            } else if ("payment_intent.succeeded".equals(eventType)) { // Keep this if needed for other flows
+            } else if ("payment_intent.succeeded".equals(eventType)) {
+                processSuccessfulPaymentIntent(attributes);
                 log.info("Processing {} event.", eventType);
-                processSuccessfulPaymentIntent(attributes); // Keep original method if necessary
             } else {
                 log.info("Ignoring PayMongo event type: {}", eventType);
             }
@@ -174,7 +180,7 @@ public class PaymentController {
      * 
      * @param attributes The attributes map from the webhook event data.
      */
-    private void processSuccessfulPayment(Map<String, Object> attributes) {
+    private void processPaymentPaidEvent(Map<String, Object> attributes) {
         String paymentId = null; // Example: Assuming 'payment.paid' has a payment ID
         try {
             // --- Extract fields specific to the 'payment.paid' event ---
