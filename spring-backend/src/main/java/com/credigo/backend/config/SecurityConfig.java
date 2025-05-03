@@ -52,7 +52,7 @@ public class SecurityConfig {
   CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
     configuration.setAllowedOrigins(List.of(
-        "https://credi-go.vercel.app", 
+        "https://credi-go-it-342.vercel.app", 
         "https://credi-go-darryls-projects-30121f65.vercel.app",
         "https://credi-go-git-master-darryls-projects-30121f65.vercel.app",
         "https://credi-agbmmwnc3-darryls-projects-30121f65.vercel.app"
