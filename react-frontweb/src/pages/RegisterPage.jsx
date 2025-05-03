@@ -55,7 +55,7 @@ function RegisterPage() {
     const success = await register(registrationData);
     if (success) {
       alert('Registration Successful! Please login.');
-      navigate('/login');
+      // navigate('/login');
       setFormData({ username: '', email: '', password: '' }); // Clear only required fields
       setTermsAccepted(false);
     }
