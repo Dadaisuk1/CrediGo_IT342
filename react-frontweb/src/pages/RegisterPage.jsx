@@ -46,7 +46,6 @@ function RegisterPage() {
       return;
     }
     setError(null);
-    // Only send required fields
     const registrationData = {
       username: formData.username,
       email: formData.email,
@@ -55,7 +54,7 @@ function RegisterPage() {
     const success = await register(registrationData);
     if (success) {
       alert('Registration Successful! Please login.');
-      // navigate('/login');
+      navigate('/login'); // Only navigate if registration succeeded!
       setFormData({ username: '', email: '', password: '' }); // Clear only required fields
       setTermsAccepted(false);
     }

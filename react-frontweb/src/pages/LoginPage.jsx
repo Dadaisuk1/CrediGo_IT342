@@ -34,11 +34,17 @@ function LoginPage() {
   
     if (success) {
       setAlertModal({ open: true, title: 'Success', message: 'Login Successful!', type: 'success' });
-    
       setTimeout(() => {
         navigate('/');
-        window.location.reload(); // optional: ensure auth context refresh
-      }, 1000); // slightly longer delay for smoother UX
+        window.location.reload();
+      }, 1000);
+    } else {
+      setAlertModal({
+        open: true,
+        title: 'Login Failed',
+        message: 'Invalid credentials or server error. Please try again.',
+        type: 'error',
+      });
     }
   };
 
