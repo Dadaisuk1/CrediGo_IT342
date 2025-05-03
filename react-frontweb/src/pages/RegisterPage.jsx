@@ -31,6 +31,7 @@ function RegisterPage() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    setError(null); // Clear error on any input change
     if (type === 'checkbox') {
       setTermsAccepted(checked);
     } else {
