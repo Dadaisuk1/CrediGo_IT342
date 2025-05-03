@@ -34,11 +34,11 @@ function LoginPage() {
   
     if (success) {
       setAlertModal({ open: true, title: 'Success', message: 'Login Successful!', type: 'success' });
-  
-      // Delay redirect to allow React to re-render with new auth state
+    
       setTimeout(() => {
         navigate('/');
-      }, 500); // Small delay to ensure token is updated
+        window.location.reload(); // optional: ensure auth context refresh
+      }, 1000); // slightly longer delay for smoother UX
     }
   };
 
