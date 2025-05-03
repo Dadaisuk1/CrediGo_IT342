@@ -19,7 +19,7 @@ const GoogleIcon = () => (
 function LoginPage() {
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // State for password visibility
+  const [showPassword, setShowPassword] = useState(false);
   const { login, loading, error, setError } = useAuth();
   const navigate = useNavigate();
 
@@ -36,7 +36,6 @@ function LoginPage() {
       setAlertModal({ open: true, title: 'Success', message: 'Login Successful!', type: 'success' });
       setTimeout(() => {
         navigate('/');
-        window.location.reload();
       }, 1000);
     } else {
       setAlertModal({
