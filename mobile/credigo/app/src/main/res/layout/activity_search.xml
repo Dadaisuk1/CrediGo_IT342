@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:id="@+id/main"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/screen_background"
+        tools:context=".SearchActivity">
+
+    <!-- Title -->
+    <TextView
+            android:id="@+id/text_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Search"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/button_background"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginTop="32dp"
+            android:layout_marginStart="28dp" />
+
+    <!-- Wallet section -->
+    <LinearLayout
+            android:id="@+id/wallet_section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="8dp"
+            app:layout_constraintTop_toTopOf="@id/text_title"
+            app:layout_constraintBottom_toBottomOf="@id/text_title"
+            app:layout_constraintEnd_toStartOf="@id/mail_icon"
+            android:layout_marginEnd="8dp">
+
+        <TextView
+                android:id="@+id/tv_balance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₱ 0.00"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp" />
+
+        <ImageView
+                android:id="@+id/iv_wallet"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_wallet"
+                android:contentDescription="wallet" />
+
+    </LinearLayout>
+
+    <!-- Mail Icon -->
+    <ImageView
+            android:id="@+id/mail_icon"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="16dp"
+            android:src="@drawable/ic_mail"
+            android:contentDescription="Mail"
+            app:layout_constraintTop_toTopOf="@id/text_title"
+            app:layout_constraintBottom_toBottomOf="@id/text_title"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Search Bar -->
+    <LinearLayout
+            android:id="@+id/search_container"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/search_background"
+            app:layout_constraintTop_toBottomOf="@id/text_title"
+            android:layout_marginTop="16dp"
+            android:layout_marginStart="28dp"
+            android:layout_marginEnd="28dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+
+        <ImageView
+                android:id="@+id/search_icon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_search"
+                android:contentDescription="Search" />
+
+        <EditText
+                android:id="@+id/search_input"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="Search products"
+                android:textSize="16sp"
+                android:textColor="@android:color/black"
+                android:textColorHint="#BDBDBD"
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:maxLines="1"
+                android:singleLine="true" />
+
+    </LinearLayout>
+   
+    <!-- Clear Search Button (X) -->
+    <ImageView
+            android:id="@+id/clear_search_button"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_x_circle"
+            android:contentDescription="Clear search"
+            android:visibility="gone"
+            android:padding="4dp"
+            app:layout_constraintTop_toTopOf="@id/search_container"
+            app:layout_constraintBottom_toBottomOf="@id/search_container"
+            app:layout_constraintEnd_toEndOf="@id/search_container"
+            android:layout_marginEnd="8dp" />
+            
+    <!-- Sort Buttons -->
+    <include
+        android:id="@+id/sort_buttons"
+        layout="@layout/layout_sort_buttons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/search_container"
+        android:layout_marginTop="8dp" />
+
+    <!-- Content Container -->
+    <FrameLayout
+            android:id="@+id/content_container"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toBottomOf="@id/sort_buttons"
+            app:layout_constraintBottom_toTopOf="@id/confirmation_panel"
+            android:layout_marginTop="8dp" />
+            
+    <!-- Empty State -->
+    <LinearLayout
+            android:id="@+id/empty_state_container"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone"
+            android:alpha="0.7"
+            app:layout_constraintTop_toBottomOf="@id/sort_buttons"
+            app:layout_constraintBottom_toTopOf="@id/confirmation_panel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+            
+        <ImageView
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:src="@drawable/ic_search_empty"
+                android:contentDescription="No results" />
+                
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No results found"
+                android:textSize="16sp"
+                android:textColor="#808080"
+                android:layout_marginTop="8dp" />
+    </LinearLayout>
+
+    <!-- Confirmation Panel -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/confirmation_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="2dp"
+        android:visibility="gone"
+        android:minHeight="120dp"
+        app:layout_constraintBottom_toTopOf="@id/navbar_container">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- TOP SECTION: White BG -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@android:color/white"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Confirm Payment"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:textColor="#22223A"/>
+            </LinearLayout>
+
+            <!-- BOTTOM SECTION: Green Light BG -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:background="@color/green_light"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="12dp">
+
+                <!-- Product Name -->
+                <TextView
+                    android:id="@+id/tv_selected_product"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="24sp"
+                    android:textColor="#22223A"
+                    android:textStyle="bold"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:layout_marginBottom="8dp"/>
+
+                <!-- Price and Button Container -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <!-- Price Container -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tv_selected_price"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:textColor="#22223A"/>
+
+                        <!-- Error Message (Fixed Height) -->
+                        <TextView
+                            android:id="@+id/tv_error_message"
+                            android:layout_width="wrap_content"
+                            android:layout_height="16dp"
+                            android:text="Insufficient balance"
+                            android:textColor="#FF0000"
+                            android:visibility="gone"
+                            android:textSize="11sp"
+                            android:gravity="center_vertical"/>
+                    </LinearLayout>
+
+                    <!-- Buy Button -->
+                    <Button
+                        android:id="@+id/btn_buy"
+                        android:layout_width="120dp"
+                        android:layout_height="48dp"
+                        android:text="Buy now"
+                        android:textAllCaps="false"
+                        android:background="@drawable/button_buynow"
+                        android:textColor="#22223A"
+                        android:textSize="20sp"
+                        android:elevation="0dp"
+                        android:enabled="false"
+                        android:fontFamily="sans-serif-medium"/>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Navbar Fragment -->
+    <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/navbar_container"
+            android:name="com.mine.flowpay.fragments.NavbarFragment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

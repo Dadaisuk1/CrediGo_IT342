@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/screen_background"
+    tools:context=".LoginActivity"
+    android:padding="20dp"
+       >
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Login"
+            android:textSize="43sp"
+            android:textStyle="bold"
+                android:textColor="@color/black"
+            android:layout_marginTop="40dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginBottom="40dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="15dp">
+
+            <!-- Email -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Email"
+                android:textSize="18sp"
+                    android:textColor="@color/black"/>
+
+            <androidx.appcompat.widget.AppCompatEditText
+                android:id="@+id/edittext_email"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:hint="Enter email"
+                android:inputType="textEmailAddress"
+                android:padding="10dp"
+                android:background="@drawable/edittext_border"
+                android:textColor="@color/black"/>
+
+            <TextView
+                android:id="@+id/txt_email_error"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="error message"
+                android:textSize="15sp"
+                android:gravity="right"
+                android:layout_marginBottom="15dp" />
+
+            <!-- Password -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Password"
+                android:textSize="18sp"
+                    android:textColor="@color/black"/>
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+            <androidx.appcompat.widget.AppCompatEditText
+                android:id="@+id/edittext_password"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:hint="Enter password"
+                android:imeOptions="actionDone"
+                android:inputType="textPassword"
+                android:padding="10dp"
+                android:background="@drawable/edittext_border"
+                android:textColor="@color/black"/>
+
+                <ImageView
+                    android:id="@+id/password_visibility_toggle"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:layout_marginEnd="12dp"
+                    android:src="@drawable/ic_hide"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </RelativeLayout>
+
+            <TextView
+                android:id="@+id/txt_password_error"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="error message"
+                android:textSize="15sp"
+                android:gravity="right"
+                android:layout_marginBottom="25dp" />
+
+            <!-- Login Button -->
+            <Button
+                android:id="@+id/btn_login"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:text="Log in"
+                android:textSize="20sp"
+                android:backgroundTint="@color/button_background"
+                android:textColor="#FFFFFF" />
+
+            <!-- Redirect to Register -->
+            <TextView
+                android:id="@+id/txt_register"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Don't have an account? Register here"
+                android:textSize="14sp"
+                android:textColor="@color/black"
+                android:layout_gravity="center"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.appcompat.widget.LinearLayoutCompat>

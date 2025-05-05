@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp"
+        app:cardBackgroundColor="@android:color/white"
+        android:background="@drawable/product_card_selector"
+        android:clickable="true"
+        android:focusable="true">
+
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+        <!-- Product Image -->
+        <ImageView
+                android:id="@+id/iv_product_image"
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/img_notfound"
+                android:contentDescription="Product image"
+                android:layout_marginBottom="8dp"/>
+
+        <!-- Product Name and Heart Icon Row -->
+        <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+            <!-- Product Name -->
+            <TextView
+                    android:id="@+id/tv_vp_amount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_toStartOf="@id/heart_container"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/black"
+                    android:text="Product Name"
+                    android:maxLines="2"
+                    android:ellipsize="end"/>
+
+            <!-- Heart Icon Container -->
+            <FrameLayout
+                    android:id="@+id/heart_container"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                <ImageView
+                        android:id="@+id/iv_heart"
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_heart_line"
+                        android:padding="4dp" />
+            </FrameLayout>
+        </RelativeLayout>
+
+        <!-- Price -->
+        <TextView
+                android:id="@+id/tv_price"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="14sp"
+                android:textColor="@color/orange"
+                android:text="₱0.00"/>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>
