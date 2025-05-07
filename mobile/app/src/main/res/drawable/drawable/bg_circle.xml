@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <!-- Solid color background -->
+    <solid android:color="#E1E1E1" /> <!-- Light gray color, change as needed -->
+
+    <!-- Optional border -->
+    <stroke
+        android:width="2dp"
+        android:color="#FFFFFF" /> <!-- White border, change as needed -->
+
+    <!-- Size (optional) -->
+    <size
+        android:width="120dp"
+        android:height="120dp" />
+</shape>

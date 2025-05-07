@@ -4,6 +4,7 @@ import com.credigo.backend.dto.UserResponse;
 import com.credigo.backend.entity.User;
 import com.credigo.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +19,7 @@ public class AdminController {
     private final UserService userService;
 
     @Autowired
-    public AdminController(UserService userService) {
+    public AdminController(@Qualifier("mainUserServiceImpl") UserService userService) {
         this.userService = userService;
     }
 

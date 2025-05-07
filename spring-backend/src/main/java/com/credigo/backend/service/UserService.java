@@ -33,5 +33,9 @@ public interface UserService {
 
   // Map User entity to UserResponse DTO
   com.credigo.backend.dto.UserResponse mapToUserResponse(User user);
-}
 
+  
+  User findByUsername(String username);
+
+  User findByEmail(String email);
+}

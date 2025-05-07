@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 import java.math.BigDecimal;
 import java.util.Set;
 
-@Service
+@Service("mainUserServiceImpl")
 public class UserServiceImpl implements UserService, UserDetailsService { // Implement UserDetailsService
 
   private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
@@ -37,9 +37,9 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
 
   @Autowired
   public UserServiceImpl(UserRepository userRepository,
-      RoleRepository roleRepository,
-      PasswordEncoder passwordEncoder,
-      WalletRepository walletRepository) { // Ensure WalletRepository is in constructor
+                         RoleRepository roleRepository,
+                         PasswordEncoder passwordEncoder,
+                         WalletRepository walletRepository) { // Ensure WalletRepository is in constructor
     this.userRepository = userRepository;
     this.roleRepository = roleRepository;
     this.passwordEncoder = passwordEncoder;
@@ -55,12 +55,12 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
     if (userRepository.existsByUsername(registrationRequest.getUsername())) {
       log.warn("Registration failed: Username '{}' is already taken!", registrationRequest.getUsername());
       throw new RuntimeException(
-          "Registration failed: Username '" + registrationRequest.getUsername() + "' is already taken!");
+              "Registration failed: Username '" + registrationRequest.getUsername() + "' is already taken!");
     }
     if (userRepository.existsByEmail(registrationRequest.getEmail())) {
       log.warn("Registration failed: Email '{}' is already in use!", registrationRequest.getEmail());
       throw new RuntimeException(
-          "Registration failed: Email '" + registrationRequest.getEmail() + "' is already in use!");
+              "Registration failed: Email '" + registrationRequest.getEmail() + "' is already in use!");
     }
 
     User user = new User();
@@ -77,12 +77,12 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
 
     String defaultRoleName = "USER";
     Role userRole = roleRepository.findByRoleName(defaultRoleName)
-        .orElseThrow(() -> {
-          log.error("CRITICAL: Default role '{}' not found in database!", defaultRoleName);
-          return new RuntimeException(
-              "Error: Default role '" + defaultRoleName + "' not found in database. " +
-                  "Ensure roles are initialized on application startup.");
-        });
+            .orElseThrow(() -> {
+              log.error("CRITICAL: Default role '{}' not found in database!", defaultRoleName);
+              return new RuntimeException(
+                      "Error: Default role '" + defaultRoleName + "' not found in database. " +
+                              "Ensure roles are initialized on application startup.");
+            });
 
     user.setRoles(Set.of(userRole));
     log.debug("Assigning role '{}' to user {}", defaultRoleName, user.getUsername());
@@ -107,27 +107,57 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
     log.debug("Attempting to load user by username or email: {}", usernameOrEmail);
 
     User user = userRepository.findByUsername(usernameOrEmail)
-        .orElseGet(() -> userRepository.findByEmail(usernameOrEmail)
-            .orElseThrow(() -> {
-              log.warn("User not found with username or email: {}", usernameOrEmail);
-              // Use the imported UsernameNotFoundException
-              return new UsernameNotFoundException("User not found with username or email: " + usernameOrEmail);
-            }));
+            .orElseGet(() -> userRepository.findByEmail(usernameOrEmail)
+                    .orElseThrow(() -> {
+                      log.warn("User not found with username or email: {}", usernameOrEmail);
+                      // Use the imported UsernameNotFoundException
+                      return new UsernameNotFoundException("User not found with username or email: " + usernameOrEmail);
+                    }));
 
     log.debug("User found: {}", user.getUsername());
 
     // Use the imported GrantedAuthority and SimpleGrantedAuthority
     Set<GrantedAuthority> authorities = user.getRoles().stream()
-        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRoleName()))
-        .collect(Collectors.toSet()); // Use the imported Collectors
+            .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRoleName()))
+            .collect(Collectors.toSet()); // Use the imported Collectors
 
     log.debug("User authorities: {}", authorities);
 
     // Return Spring Security's User object (implements UserDetails)
     return new org.springframework.security.core.userdetails.User(
-        user.getUsername(),
-        user.getPasswordHash(),
-        authorities);
+            user.getUsername(),
+            user.getPasswordHash(),
+            authorities);
+  }
+
+  /**
+   * Finds a user by their username
+   *
+   * @param username the username to search for
+   * @return User if found, null if not found
+   */
+  @Override
+  public User findByUsername(String username) {
+    if (username == null || username.isEmpty()) {
+      return null;
+    }
+    // Use the repository to find the user by username
+    return userRepository.findByUsername(username).orElse(null);
+  }
+
+  /**
+   * Finds a user by their email address
+   *
+   * @param email the email to search for
+   * @return User if found, null if not found
+   */
+  @Override
+  public User findByEmail(String email) {
+    if (email == null || email.isEmpty()) {
+      return null;
+    }
+    // Use the repository to find the user by email
+    return userRepository.findByEmail(email).orElse(null);
   }
 
   // List all users
@@ -153,7 +183,7 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
     // Assign default USER role if not set
     if (user.getRoles() == null || user.getRoles().isEmpty()) {
       Role userRole = roleRepository.findByRoleName("USER")
-        .orElseThrow(() -> new RuntimeException("Default role not found"));
+              .orElseThrow(() -> new RuntimeException("Default role not found"));
       user.setRoles(Set.of(userRole));
     }
     // Create wallet if not present
@@ -171,7 +201,7 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
   @Transactional
   public User updateUser(Long id, User updatedUser) {
     User user = userRepository.findById(id.intValue())
-      .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     user.setUsername(updatedUser.getUsername());
     user.setEmail(updatedUser.getEmail());
     user.setPhoneNumber(updatedUser.getPhoneNumber());
@@ -204,7 +234,7 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
   @Transactional
   public void deleteUser(Long id) {
     User user = userRepository.findById(id.intValue())
-      .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     userRepository.delete(user);
   }
 
@@ -260,4 +290,3 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
     return dto;
   }
 }
-

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@android:color/white"
+ >
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+            android:layout_marginVertical="16dp">
+
+        <!-- Fixed-width container for unread indicator, always present -->
+        <FrameLayout
+            android:id="@+id/fl_unread_indicator_container"
+            android:layout_width="24dp"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:id="@+id/iv_unread_indicator"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_dot_red"
+                android:visibility="gone"
+                android:contentDescription="Unread mail indicator" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_mail_subject"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@android:color/black"
+            android:textSize="16sp"
+            android:layout_marginEnd="16dp"
+            tools:text="Mail Subject" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#e0e0e0" />
+
+</LinearLayout>
