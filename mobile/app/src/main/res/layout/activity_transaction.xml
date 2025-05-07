@@ -77,7 +77,7 @@
     <!-- Navbar Fragment -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/navbar_container"
-        android:name="com.mine.flowpay.fragments.NavbarFragment"
+        android:name="com.sia.credigo.fragments.NavbarFragment"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"
