@@ -172,7 +172,7 @@ public class PaymentController {
      * Helper method to process the attributes of a successful payment.paid event.
      * Adapt fields based on the actual structure of the 'payment.paid' event
      * attributes.
-     * 
+     *
      * @param attributes The attributes map from the webhook event data.
      */
     private void processPaymentPaidEvent(Map<String, Object> attributes) {
@@ -262,7 +262,7 @@ public class PaymentController {
     /**
      * Helper method to process the attributes of a successful payment intent.
      * Kept for reference or if you handle payment_intent events elsewhere.
-     * 
+     *
      * @param attributes The attributes map from the webhook event data.
      */
     private void processSuccessfulPaymentIntent(Map<String, Object> attributes) {
@@ -417,6 +417,42 @@ public class PaymentController {
             log.warn("Webhook signature mismatch! Provided: {}, Calculated: {}", signatureToCompare, calculatedHashHex);
         }
         return isValid;
+    }
+
+    @PostMapping("/create-payment-link/{orderId}")
+    public ResponseEntity<?> createPaymentLink(@PathVariable String orderId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated.");
+            }
+            String username = authentication.getName();
+
+            PaymentResponse response = paymentService.createPaymentLink(orderId, username);
+            return ResponseEntity.ok(Map.of("checkoutUrl", response.getCheckoutUrl()));
+        } catch (Exception e) {
+            log.error("Error creating payment link for orderId {}: {}", orderId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to create payment link: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/verify/{orderId}")
+    public ResponseEntity<?> verifyPayment(@PathVariable String orderId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated.");
+            }
+            String username = authentication.getName();
+
+            boolean isVerified = paymentService.verifyPayment(orderId, username);
+            return ResponseEntity.ok(Map.of("verified", isVerified));
+        } catch (Exception e) {
+            log.error("Error verifying payment for orderId {}: {}", orderId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to verify payment: " + e.getMessage());
+        }
     }
 
 }

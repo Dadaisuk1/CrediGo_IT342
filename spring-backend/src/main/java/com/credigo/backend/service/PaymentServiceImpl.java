@@ -18,26 +18,39 @@ import java.util.Base64;
 @Service
 public class PaymentServiceImpl implements PaymentService {
     private static final Logger log = LoggerFactory.getLogger(PaymentServiceImpl.class);
+
     private final String secretKey;
     private final WebClient webClient;
     private final String successUrl;
     private final String cancelUrl;
+    private final String webhookUrl;
+    private final String apiVersion;
 
     public PaymentServiceImpl(
             @Value("${paymongo.secret.key}") String secretKey,
-            @Value("${app.frontend.url:https://credi-go-it-342.vercel.app}") String frontendUrl) {
+            @Value("${paymongo.base.url}") String baseUrl,
+            @Value("${paymongo.success.url}") String successUrl,
+            @Value("${paymongo.cancel.url}") String cancelUrl,
+            @Value("${paymongo.webhook.url}") String webhookUrl,
+            @Value("${paymongo.api.version}") String apiVersion) {
+
         if (secretKey == null || secretKey.trim().isEmpty()) {
             throw new IllegalArgumentException("PayMongo secret key is not configured.");
         }
-        this.secretKey = secretKey;
-        this.webClient = WebClient.builder()
-                .baseUrl("https://api.paymongo.com/v1")
-                .defaultHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString((this.secretKey + ":").getBytes()))
-                .build();
 
-        // Set up success and cancel URLs
-        this.successUrl = frontendUrl + "/payment/success";
-        this.cancelUrl = frontendUrl + "/payment/cancel";
+        this.secretKey = secretKey;
+        this.successUrl = successUrl;
+        this.cancelUrl = cancelUrl;
+        this.webhookUrl = webhookUrl;
+        this.apiVersion = apiVersion;
+
+        this.webClient = WebClient.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString((this.secretKey + ":").getBytes()))
+                .defaultHeader("Accept", "application/json")
+                .defaultHeader("Content-Type", "application/json")
+                .defaultHeader("PayMongo-Version", apiVersion)
+                .build();
     }
 
     @Override
@@ -154,15 +167,103 @@ public class PaymentServiceImpl implements PaymentService {
 
         Map<String, Object> paymentData = (Map<String, Object>) paymentResponse.get("data");
         Map<String, Object> paymentResponseAttributes = (Map<String, Object>) paymentData.get("attributes");
-        Map<String, Object> sourceAttributes = (Map<String, Object>) ((Map<String, Object>) sourceData.get("attributes")).get("redirect");
+        Map<String, Object> redirectAttributes = (Map<String, Object>) ((Map<String, Object>) sourceData.get("attributes")).get("redirect");
 
         return new PaymentResponse(
             null,
-            (String) sourceAttributes.get("checkout_url"),
+            (String) redirectAttributes.get("checkout_url"),
             (String) paymentResponseAttributes.get("status"),
             (String) paymentData.get("id"),
             (String) paymentResponseAttributes.get("currency"),
             (Long) paymentResponseAttributes.get("amount")
         );
+    }
+
+    @Override
+    public PaymentResponse createPaymentLink(String orderId, String username) {
+        try {
+            // TODO: Get order details and amount from your order service
+            // For now, using a dummy amount
+            long amountInCentavos = 10000; // 100 PHP
+
+            Map<String, Object> attributes = new HashMap<>();
+            attributes.put("amount", amountInCentavos);
+            attributes.put("description", "Payment for Order " + orderId);
+            attributes.put("remarks", "Order payment for " + username);
+            attributes.put("payment_method_allowed", Arrays.asList("gcash", "paymaya"));
+            attributes.put("currency", "PHP");
+
+            // Add redirect URLs with orderId
+            Map<String, String> redirect = new HashMap<>();
+            redirect.put("success", successUrl + "?orderId=" + orderId);
+            redirect.put("failed", cancelUrl + "?orderId=" + orderId);
+            attributes.put("redirect", redirect);
+
+            // Add metadata for tracking
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put("order_id", orderId);
+            metadata.put("username", username);
+            attributes.put("metadata", metadata);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("data", Map.of("attributes", attributes));
+
+            Map<String, Object> response = webClient.post()
+                    .uri("/links")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
+
+            if (response == null || !(response.get("data") instanceof Map)) {
+                throw new RuntimeException("Invalid response structure from PayMongo.");
+            }
+
+            Map<String, Object> data = (Map<String, Object>) response.get("data");
+            Map<String, Object> responseAttributes = (Map<String, Object>) data.get("attributes");
+
+            return new PaymentResponse(
+                null,
+                (String) responseAttributes.get("checkout_url"),
+                "pending",
+                (String) data.get("id"),
+                "PHP",
+                amountInCentavos
+            );
+
+        } catch (Exception e) {
+            log.error("Error creating payment link: {}", e.getMessage());
+            throw new RuntimeException("Failed to create payment link: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean verifyPayment(String orderId, String username) {
+        try {
+            // TODO: Get the payment link ID associated with this order from your database
+            // For now, we'll assume the orderId is the payment link ID
+            String paymentLinkId = orderId;
+
+            Map<String, Object> response = webClient.get()
+                    .uri("/links/" + paymentLinkId)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
+
+            if (response == null || !(response.get("data") instanceof Map)) {
+                throw new RuntimeException("Invalid response structure from PayMongo.");
+            }
+
+            Map<String, Object> data = (Map<String, Object>) response.get("data");
+            Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
+
+            // Check if the payment is paid
+            String status = (String) attributes.get("status");
+            return "paid".equals(status);
+
+        } catch (Exception e) {
+            log.error("Error verifying payment: {}", e.getMessage());
+            throw new RuntimeException("Failed to verify payment: " + e.getMessage());
+        }
     }
 }
