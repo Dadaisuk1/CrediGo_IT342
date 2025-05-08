@@ -3,6 +3,7 @@ package com.credigo.backend.dto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,10 +20,14 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class WalletTopUpRequest {
 
-  @NotNull(message = "Amount cannot be null")
-  @DecimalMin(value = "50.00", message = "Minimum top-up amount is 50.00") // Example minimum
+  @NotNull(message = "Amount is required")
+  @DecimalMin(value = "50.00", message = "Minimum top-up amount is ₱50.00")
   @Digits(integer = 6, fraction = 2, message = "Amount format is invalid") // Example: max 999999.99
   private BigDecimal amount;
+
+  @NotNull(message = "Payment type is required")
+  @Pattern(regexp = "^(card|gcash|paymaya)$", message = "Payment type must be either 'card', 'gcash', or 'paymaya'")
+  private String paymentType;
 
   // Currency is often determined server-side (e.g., always PHP for this app),
   // but could be included if multiple currencies were supported.
