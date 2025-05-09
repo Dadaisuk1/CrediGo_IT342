@@ -133,6 +133,7 @@ class WishlistActivity : AppCompatActivity() {
         })
 
         // Load user's wishlist
+        wishlistViewModel.setCurrentUser(currentUserId.toInt())
         wishlistViewModel.loadUserWishlist()
 
         // Observe wishlist changes
@@ -155,7 +156,7 @@ class WishlistActivity : AppCompatActivity() {
         // Filter products that are in the wishlist
         likedProducts.clear()
         likedProducts.addAll(allProducts.filter { product ->
-            wishlistedProducts.contains(product.productid)
+            wishlistedProducts.contains(product.id)
         })
 
         // Update adapter
@@ -163,7 +164,7 @@ class WishlistActivity : AppCompatActivity() {
             likedProducts,
             onProductSelected = { product -> onProductSelected(product) },
             onWishlistClicked = { product -> toggleWishlist(product) },
-            isInWishlist = { product -> wishlistedProducts.contains(product.productid) }
+            isInWishlist = { product -> wishlistedProducts.contains(product.id) }
         )
     }
 
@@ -238,7 +239,7 @@ class WishlistActivity : AppCompatActivity() {
                         // Get platform name
                         val platformViewModel = ViewModelProvider(this@WishlistActivity).get(PlatformViewModel::class.java)
                         val platform = withContext(Dispatchers.IO) {
-                            platformViewModel.getPlatformById(product.platformid.toLong())
+                            platformViewModel.getPlatformById(product.platformId)
                         }
                         val platformName = platform?.name ?: "Unknown"
 
@@ -295,23 +296,23 @@ Best regards,
     }
 
     private fun toggleWishlist(product: Product) {
-        if (wishlistedProducts.contains(product.productid)) {
+        if (wishlistedProducts.contains(product.id)) {
             // Show confirmation dialog for removing from wishlist
             DialogUtils.showCustomConfirmationDialog(
                 context = this,
                 title = "Remove from wishlist",
                 message = "are you sure you want to remove this item?",
                 onConfirm = {
-                    wishlistViewModel.removeFromWishlist(product.productid)
-                    wishlistedProducts.remove(product.productid)
+                    wishlistViewModel.removeFromWishlist(product.id)
+                    wishlistedProducts.remove(product.id)
                     (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
                     Toast.makeText(this, "Removed from wishlist", Toast.LENGTH_SHORT).show()
                 }
             )
         } else {
             // This shouldn't happen in the likes screen, but handle it anyway
-            wishlistViewModel.addToWishlist(product.productid)
-            wishlistedProducts.add(product.productid)
+            wishlistViewModel.addToWishlist(product.id)
+            wishlistedProducts.add(product.id)
             (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
             Toast.makeText(this, "Added to wishlist", Toast.LENGTH_SHORT).show()
         }

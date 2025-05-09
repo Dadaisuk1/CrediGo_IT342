@@ -200,15 +200,26 @@ class LoginActivity : AppCompatActivity() {
                     if (loginResponse != null) {
                         Log.d(TAG, "Login successful")
                         
+                        // Create a minimally populated User object to ensure we have data immediately
+                        val user = com.sia.credigo.model.User(
+                            id = loginResponse.id,
+                            username = loginResponse.username,
+                            email = email
+                        )
+                        
                         // Set current user in CredigoApp
                         (application as CredigoApp).apply {
                             // Save login data including token
                             sessionManager.saveLoginData(loginResponse)
+                            
+                            // Save the user object to session for immediate persistence
+                            sessionManager.saveUserData(user)
+                            
+                            // Set the app's logged in user references
                             isLoggedIn = true
-
-                            // We don't have the full user object yet, just the ID
-                            // Set loggedInuser to null for now, it will be fetched later
-                            loggedInuser = null
+                            loggedInuser = user
+                            
+                            Log.d(TAG, "User data saved to session: ${user.username}, ID: ${user.id}")
                         }
 
                         // Navigate to home screen

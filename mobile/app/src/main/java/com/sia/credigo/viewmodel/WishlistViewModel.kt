@@ -28,6 +28,12 @@ class WishlistViewModel : ViewModel() {
     private var currentUserId: Int? = null
 
     fun setCurrentUser(userId: Int) {
+        if (userId <= 0) {
+            Log.e(TAG, "Invalid user ID: $userId")
+            return
+        }
+        
+        Log.d(TAG, "Setting current user ID to: $userId")
         currentUserId = userId
         // Load wishlist for the new user
         loadUserWishlist()
@@ -57,16 +63,17 @@ class WishlistViewModel : ViewModel() {
     }
 
     fun addToWishlist(productId: Int) {
+        // Always double-check that we have a current user
         val userId = currentUserId ?: run {
             Log.e(TAG, "Cannot add to wishlist: No current user set")
             _errorMessage.value = "Cannot add to wishlist: No user logged in"
             return
         }
 
+        Log.d(TAG, "Adding product $productId to wishlist for user $userId")
         _isLoading.value = true
         viewModelScope.launch {
             try {
-                Log.d(TAG, "Adding product $productId to wishlist for user $userId")
                 val response = wishlistService.addToWishlist(productId)
                 if (response.isSuccessful) {
                     // Add the new item to our local list
@@ -74,6 +81,7 @@ class WishlistViewModel : ViewModel() {
                         val currentList = _wishlistItems.value?.toMutableList() ?: mutableListOf()
                         currentList.add(newItem)
                         _wishlistItems.value = currentList
+                        Log.d(TAG, "Successfully added product $productId to wishlist")
                     }
                 } else {
                     Log.e(TAG, "Error adding to wishlist: ${response.code()} ${response.message()}")
@@ -89,22 +97,24 @@ class WishlistViewModel : ViewModel() {
     }
 
     fun removeFromWishlist(productId: Int) {
+        // Always double-check that we have a current user
         val userId = currentUserId ?: run {
             Log.e(TAG, "Cannot remove from wishlist: No current user set")
             _errorMessage.value = "Cannot remove from wishlist: No user logged in"
             return
         }
 
+        Log.d(TAG, "Removing product $productId from wishlist for user $userId")
         _isLoading.value = true
         viewModelScope.launch {
             try {
-                Log.d(TAG, "Removing product $productId from wishlist for user $userId")
                 val response = wishlistService.removeFromWishlist(productId)
                 if (response.isSuccessful) {
                     // Remove the item from our local list
                     val currentList = _wishlistItems.value?.toMutableList() ?: mutableListOf()
                     currentList.removeAll { it.productId == productId }
                     _wishlistItems.value = currentList
+                    Log.d(TAG, "Successfully removed product $productId from wishlist")
                 } else {
                     Log.e(TAG, "Error removing from wishlist: ${response.code()} ${response.message()}")
                     _errorMessage.value = "Failed to remove from wishlist: ${response.message()}"

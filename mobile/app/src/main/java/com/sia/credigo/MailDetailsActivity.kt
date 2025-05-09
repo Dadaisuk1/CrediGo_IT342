@@ -107,7 +107,7 @@ class MailDetailsActivity : AppCompatActivity() {
                             // If product found, get its category
                             var categoryName = ""
                             if (product != null) {
-                                val category = productViewModel.getPlatformById(product.platformid)
+                                val category = productViewModel.getPlatformById(product.platformId)
                                 if (category != null) {
                                     categoryName = category.name
                                 }

@@ -98,7 +98,7 @@ class ProductViewModel : ViewModel() {
 
     suspend fun getPlatformById(platformId: Int): Platform? {
         val platformViewModel = PlatformViewModel()
-        return platformViewModel.getPlatformById(platformId.toLong()) // Convert Int to Long to fix type mismatch
+        return platformViewModel.getPlatformById(platformId)
     }
 
     // Method to get products by platform ID
@@ -120,7 +120,7 @@ class ProductViewModel : ViewModel() {
         }
 
         // Filter products by category ID
-        return _products.value?.filter { it.platformid == categoryId } ?: emptyList()
+        return _products.value?.filter { it.platformId == categoryId } ?: emptyList()
     }
 
     // Helper method to format price for display

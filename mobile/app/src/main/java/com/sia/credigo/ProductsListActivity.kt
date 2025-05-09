@@ -169,6 +169,7 @@ class ProductsListActivity : AppCompatActivity() {
         }
 
         // Load wishlist items for current user
+        wishlistViewModel.setCurrentUser(currentUserId.toInt())
         wishlistViewModel.loadUserWishlist()
         
         // Observe wishlist changes
@@ -221,7 +222,7 @@ class ProductsListActivity : AppCompatActivity() {
 
                             // Get platform name
                             val platform = withContext(Dispatchers.IO) {
-                                productViewModel.getPlatformById(product.platformid)
+                                productViewModel.getPlatformById(product.platformId)
                             }
                             val platformName = platform?.name ?: "Unknown"
 
@@ -287,7 +288,7 @@ Best regards,
             products,
             onProductSelected = { product -> onProductSelected(product) },
             onWishlistClicked = { product -> toggleWishlist(product) },
-            isInWishlist = { product -> wishlistedProducts.contains(product.productid) }
+            isInWishlist = { product -> wishlistedProducts.contains(product.id) }
         )
     }
 
@@ -325,7 +326,7 @@ Best regards,
     }
 
     private fun toggleWishlist(product: Product) {
-        if (wishlistedProducts.contains(product.productid)) {
+        if (wishlistedProducts.contains(product.id)) {
             // Show custom confirmation dialog for removing from wishlist
             DialogUtils.showCustomConfirmationDialog(
                 context = this,
@@ -333,8 +334,8 @@ Best regards,
                 message = "are you sure you want to remove this item?",
                 onConfirm = {
                     // Remove from wishlist
-                    wishlistViewModel.removeFromWishlist(product.productid)
-                    wishlistedProducts.remove(product.productid)
+                    wishlistViewModel.removeFromWishlist(product.id)
+                    wishlistedProducts.remove(product.id)
                     // Update the adapter to reflect changes
                     (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
                     Toast.makeText(this, "Removed from wishlist", Toast.LENGTH_SHORT).show()
@@ -342,8 +343,8 @@ Best regards,
             )
         } else {
             // Add to wishlist
-            wishlistViewModel.addToWishlist(product.productid)
-            wishlistedProducts.add(product.productid)
+            wishlistViewModel.addToWishlist(product.id)
+            wishlistedProducts.add(product.id)
             Toast.makeText(this, "Added to wishlist", Toast.LENGTH_SHORT).show()
             // Update the adapter to reflect changes
             (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
@@ -542,7 +543,7 @@ Best regards,
 
                         // Get platform name
                         val platform = withContext(Dispatchers.IO) {
-                            productViewModel.getPlatformById(product.platformid)
+                            productViewModel.getPlatformById(product.platformId)
                         }
                         val platformName = platform?.name ?: "Unknown"
 

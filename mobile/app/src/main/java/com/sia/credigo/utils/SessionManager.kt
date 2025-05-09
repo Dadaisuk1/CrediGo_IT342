@@ -171,7 +171,25 @@ class SessionManager(context: Context) {
     }
 
     fun isLoggedIn(): Boolean {
+        // First check the isLoggedIn flag
         val loggedIn = sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false)
+        
+        // If not logged in by flag, check if we have the essential user data
+        if (!loggedIn) {
+            val hasUserData = sharedPreferences.getString(KEY_USER_DATA, null) != null
+            val hasUserId = sharedPreferences.getLong(KEY_USER_ID, -1) > 0
+            
+            // If we have either user data or user ID, consider logged in
+            if (hasUserData || hasUserId) {
+                // Fix the flag to be consistent
+                editor.putBoolean(KEY_IS_LOGGED_IN, true)
+                editor.apply()
+                
+                Log.d(TAG, "Found user data despite isLoggedIn=false, correcting flag")
+                return true
+            }
+        }
+        
         Log.d(TAG, "isLoggedIn check: $loggedIn")
         return loggedIn
     }

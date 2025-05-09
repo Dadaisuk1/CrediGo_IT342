@@ -104,24 +104,17 @@ class PlatformViewModel : ViewModel() {
         _allPlatforms.postValue(fallbackPlatforms)
     }
 
-    suspend fun getPlatformById(platformId: Long): Platform? {
-        Log.d(TAG, "Getting platform with ID: $platformId")
+    suspend fun getPlatformById(platformId: Int): Platform? {
         return try {
             val response = platformService.getPlatformById(platformId)
             if (response.isSuccessful) {
-                val platform = response.body()
-                Log.d(TAG, "Retrieved platform: ${platform?.name}")
-                platform
+                response.body()
             } else {
-                val errorMsg = "HTTP ${response.code()}: ${response.message()}"
-                Log.e(TAG, errorMsg)
-                _errorMessage.value = errorMsg
+                _errorMessage.value = "Failed to get platform details: ${response.message()}"
                 null
             }
         } catch (e: Exception) {
-            val errorMsg = "Error: ${e.localizedMessage}"
-            Log.e(TAG, errorMsg, e)
-            _errorMessage.value = errorMsg
+            _errorMessage.value = "Error: ${e.message}"
             null
         }
     }

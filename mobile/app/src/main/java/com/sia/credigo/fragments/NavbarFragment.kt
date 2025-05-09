@@ -153,7 +153,7 @@ class NavbarFragment : Fragment() {
         homeIcon.setImageResource(R.drawable.ic_home)
         searchIcon.setImageResource(R.drawable.ic_search)
         likesIcon.setImageResource(R.drawable.ic_heart)
-        profileIcon.setImageResource(R.drawable.ic_profile)
+        profileIcon.setImageResource(R.drawable.ic_user_linear)
 
         // Reset all text colors to default
         homeText.setTextColor(Color.BLACK)
@@ -168,15 +168,15 @@ class NavbarFragment : Fragment() {
                 homeText.setTextColor(Color.parseColor("#00CA63"))
             }
             is SearchActivity -> {
-                searchIcon.setImageResource(R.drawable.ic_search_green)
+                searchIcon.setImageResource(R.drawable.ic_search_pink)
                 searchText.setTextColor(Color.parseColor("#00CA63"))
             }
             is WishlistActivity -> {
-                likesIcon.setImageResource(R.drawable.ic_heart_green)
+                likesIcon.setImageResource(R.drawable.ic_heart_fill_pink)
                 likesText.setTextColor(Color.parseColor("#00CA63"))
             }
             is ProfileActivity -> {
-                profileIcon.setImageResource(R.drawable.ic_profile_green)
+                profileIcon.setImageResource(R.drawable.ic_user_pink)
                 profileText.setTextColor(Color.parseColor("#00CA63"))
             }
         }

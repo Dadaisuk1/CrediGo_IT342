@@ -11,6 +11,7 @@ import com.sia.credigo.model.Product
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.bumptech.glide.request.RequestOptions
+import android.util.Log
 
 class ProductAdapter(
     private val products: List<Product>,
@@ -19,7 +20,7 @@ class ProductAdapter(
     private val isInWishlist: (Product) -> Boolean
 ) : RecyclerView.Adapter<ProductAdapter.ProductViewHolder>() {
 
-    private var selectedProduct: Product? = null
+    private var selectedProductId: Int? = null
 
     inner class ProductViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val vpAmountView: TextView = view.findViewById(R.id.tv_vp_amount)
@@ -38,10 +39,12 @@ class ProductAdapter(
                 }
             }
 
+            // Set up heart icon click event
             heartIcon.setOnClickListener {
                 val position = adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     val product = products[position]
+                    Log.d("ProductAdapter", "Wishlist clicked for product: ${product.id} at position $position")
                     onWishlistClicked(product)
                 }
             }
@@ -56,8 +59,7 @@ class ProductAdapter(
 
     override fun onBindViewHolder(holder: ProductViewHolder, position: Int) {
         val product = products[position]
-        val isSelected = product == selectedProduct
-
+        
         // Set product info with explicit visibility
         holder.vpAmountView.visibility = View.VISIBLE
         holder.vpAmountView.text = product.name ?: "No Name"
@@ -87,13 +89,16 @@ class ProductAdapter(
             holder.productImage.setImageResource(getDefaultImageForProduct(product))
         }
 
-        // Update selection state
+        // Update selection state using strict equality check between IDs
+        val isSelected = selectedProductId != null && selectedProductId == product.id
+        
+        // Apply the proper background based on selection state
         holder.cardView.setBackgroundResource(
-            if (selectedProduct?.productid == product.productid) R.drawable.product_card_selected_green
+            if (isSelected) R.drawable.product_card_selected_green
             else R.drawable.product_card_background
         )
 
-        // Ensure heart icon is visible
+        // Ensure heart icon is visible and set correctly for each item
         holder.heartIcon.visibility = View.VISIBLE
         holder.heartIcon.setImageResource(
             if (isInWishlist(product)) R.drawable.ic_heart_green
@@ -126,22 +131,49 @@ class ProductAdapter(
     override fun getItemCount() = products.size
 
     fun setSelectedProduct(product: Product?) {
-        selectedProduct = product
-        notifyDataSetChanged()
-    }
-
-    fun updateWishlistState(product: Product) {
-        val position = products.indexOfFirst { it.productid == product.productid }
-        if (position != -1) {
-            notifyItemChanged(position)
+        // Update the selectedProductId
+        val oldSelectedId = selectedProductId
+        selectedProductId = product?.id
+        
+        // Log the selection change
+        Log.d("ProductAdapter", "Setting selected product ID to: $selectedProductId")
+        
+        // Only notify the changed items for more efficient updates
+        if (oldSelectedId != null) {
+            val oldPosition = products.indexOfFirst { it.id == oldSelectedId }
+            if (oldPosition != -1) {
+                notifyItemChanged(oldPosition)
+            }
+        }
+        
+        if (selectedProductId != null) {
+            val newPosition = products.indexOfFirst { it.id == selectedProductId }
+            if (newPosition != -1) {
+                notifyItemChanged(newPosition)
+            }
         }
     }
 
-    fun getSelectedProduct(): Product? = selectedProduct
+    fun updateWishlistState(product: Product) {
+        val position = products.indexOfFirst { it.id == product.id }
+        if (position != -1) {
+            Log.d("ProductAdapter", "Updating wishlist state for product ${product.id} at position $position")
+            notifyItemChanged(position)
+        } else {
+            Log.e("ProductAdapter", "Failed to find product ${product.id} to update wishlist state")
+        }
+    }
+
+    fun getSelectedProduct(): Product? {
+        // Find the product by ID
+        return selectedProductId?.let { id ->
+            products.find { it.id == id }
+        }
+    }
 
     // Unselect product
     fun clearSelectedProduct() {
-        selectedProduct = null
+        selectedProductId = null
         notifyDataSetChanged()
     }
 } 

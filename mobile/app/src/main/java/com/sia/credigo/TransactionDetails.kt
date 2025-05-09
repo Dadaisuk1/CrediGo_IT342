@@ -90,7 +90,7 @@ class TransactionDetails : AppCompatActivity() {
                             if (product != null) {
                                 // Get category name
                                 val category = withContext(Dispatchers.IO) {
-                                    categoryViewModel.getPlatformById(product.platformid.toLong())
+                                    categoryViewModel.getPlatformById(product.platformId)
                                 }
                                 categoryView.text = category?.name ?: "Unknown Category"
                             } else {

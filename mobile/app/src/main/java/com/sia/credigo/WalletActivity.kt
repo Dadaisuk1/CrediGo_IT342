@@ -71,24 +71,47 @@ class WalletActivity : AppCompatActivity() {
 
         // Get current user from application
         val app = application as CredigoApp
-        app.loggedInuser?.let {
-            currentUser = it
-        } ?: run {
-            // If no user is logged in, redirect to login
-            startActivity(Intent(this, LoginActivity::class.java))
-            finish()
-            return
+        
+        // Make sure we have a valid user - try multiple sources
+        var userData = app.loggedInuser
+        
+        // If no user in app, try session
+        if (userData == null && app.sessionManager.isLoggedIn()) {
+            userData = app.sessionManager.getUserData()
+            if (userData != null) {
+                // Found user in session, update app state
+                app.loggedInuser = userData
+            }
         }
-
+        
+        // If still no user, use test user (dev only)
+        if (userData == null) {
+            // Development only - create test user
+            userData = User(
+                id = 1,
+                username = "testuser",
+                email = "test@example.com"
+            )
+            app.loggedInuser = userData
+            app.sessionManager.saveUserData(userData)
+            app.sessionManager.saveLoginState(userData.id.toLong())
+        }
+        
+        // Now we have user data
+        currentUser = userData
+        
         // Initialize UI components
         initializeViews()
 
-        // Load wallet data - use the new fetchMyWallet method
+        // Load wallet data - use the fetchMyWallet method first
         walletViewModel.fetchMyWallet()
+        
+        // As fallback, also try to load wallet by user ID
+        walletViewModel.getWalletByUserId(currentUser.id.toLong())
 
         // Load the latest user data
         lifecycleScope.launch {
-            userViewModel.loadUser(currentUser.userid)
+            userViewModel.loadUser(currentUser.id)
         }
 
         // Observe wallet data for live updates
@@ -358,7 +381,7 @@ class WalletActivity : AppCompatActivity() {
                 }
 
                 val transaction = Transaction(
-                    userid = currentUser.userid.toLong(),
+                    userid = currentUser.id.toLong(),
                     type = selectedPaymentOption!!,  // We know it's not null here
                     amount = amount.toDouble(),  // Convert BigDecimal to Double for compatibility
                     timestamp = System.currentTimeMillis(),
