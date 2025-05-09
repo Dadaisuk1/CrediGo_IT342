@@ -52,16 +52,17 @@ function App() {
   const adminOnly = isAuthenticated && isAdmin(token);
 
   return (
-    <Suspense fallback={<Loading />}>
-      <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={!isAuthenticated ? <LandingPage /> : <Navigate to="/home" replace />} />
-      <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/home" replace />} />
-      <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/home" replace />} />
-      <Route path="/about" element={<AboutPage />} />
-      <Route path="/pay" element={<PaymentPage />} />
-      <Route path="/not-authorized" element={<NotAuthorized />} />
-      <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
+    <>
+      <Suspense fallback={<Loading />}>
+        <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={!isAuthenticated ? <LandingPage /> : <Navigate to="/home" replace />} />
+        <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/home" replace />} />
+        <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/home" replace />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/pay" element={<PaymentPage />} />
+        <Route path="/not-authorized" element={<NotAuthorized />} />
+        <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
 
         {/* Protected User Routes */}
         <Route path="/home" element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/" replace />}>

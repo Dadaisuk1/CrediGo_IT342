@@ -1,7 +1,6 @@
 // src/components/LoginPage.jsx
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { FormLabel } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
@@ -61,7 +60,7 @@ function LoginPage() {
   };
 
   const handleGoogleSignIn = () => {
-    window.location.href = `${API_BASE_URL}/api/auth/oauth2/authorize/google`;
+    window.location.href = `${API_BASE_URL}/api/auth/oauth2/authorize/google?redirect_uri=${window.location.origin}/oauth2/redirect`;
   };
 
   return (
@@ -97,9 +96,9 @@ function LoginPage() {
               )}
 
               <div className="space-y-2">
-                <FormLabel htmlFor="usernameOrEmail" className="text-credigo-light/80">
+                <label htmlFor="usernameOrEmail" className="text-credigo-light/80 block text-sm font-medium">
                   Username or Email
-                </FormLabel>
+                </label>
                 <Input
                   id="usernameOrEmail"
                   name="usernameOrEmail"
@@ -114,7 +113,7 @@ function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <FormLabel htmlFor="password" className="text-credigo-light/80">Password</FormLabel>
+                <label htmlFor="password" className="text-credigo-light/80 block text-sm font-medium">Password</label>
                 <div className="relative">
                   <Input
                     id="password"
