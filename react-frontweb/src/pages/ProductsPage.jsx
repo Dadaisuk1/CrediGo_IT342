@@ -1,37 +1,54 @@
 // src/pages/ProductsPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { getAvailableProducts, getPlatforms } from '../services/api';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PurchaseModal from '../components/PurchaseModal'; // *** 1. Import the modal ***
 import { useAuth } from '../context/AuthContext'; // Import useAuth to refresh balance
+import { getAvailableProducts, getPlatforms } from '../services/api';
 
-// Update ProductCard to accept onBuyClick prop
-const ProductCard = ({ product, onBuyClick }) => (
-  <div className="border border-gray-700 rounded-lg overflow-hidden shadow-lg bg-credigo-input-bg hover:shadow-xl transition-shadow duration-200 ease-in-out flex flex-col">
-    {product.imageUrl ? (
-      <img src={product.imageUrl} alt={product.name} className="w-full h-32 sm:h-40 object-cover" />
-    ) : (
-      <div className="w-full h-32 sm:h-40 bg-credigo-dark flex items-center justify-center text-gray-500">No Image</div>
-    )}
-    <div className="p-4 flex flex-col flex-grow">
-      <h3 className="font-semibold text-lg text-credigo-light mb-1 truncate flex-grow">{product.name}</h3>
-      <p className="text-sm text-gray-400 mb-2">Game: {product.platformName || 'Unknown'}</p>
-      <div className="flex justify-between items-center mt-auto pt-2">
-        <span className="text-xl font-bold text-credigo-light">
-          ₱{product.price ? parseFloat(product.price).toFixed(2) : '0.00'}
-        </span>
-        {/* *** 3. Modify Buy button onClick *** */}
-        <button
-          onClick={() => onBuyClick(product)} // Call handler passed from parent
-          className="px-3 py-1 bg-credigo-button text-credigo-dark rounded-md hover:bg-opacity-90 text-sm font-semibold transition duration-150"
-        >
-          Buy
-        </button>
+// Update ProductCard to accept onBuyClick prop and add product details link
+const ProductCard = ({ product, onBuyClick }) => {
+  const navigate = useNavigate();
+
+  const handleCardClick = (e) => {
+    // Prevent navigation if the click was on the Buy button
+    if (e.target.tagName.toLowerCase() === 'button') {
+      return;
+    }
+    navigate(`/home/products/${product.id}`);
+  };
+
+  return (
+    <div
+      className="border border-gray-700 rounded-lg overflow-hidden shadow-lg bg-credigo-input-bg hover:shadow-xl transition-shadow duration-200 ease-in-out flex flex-col cursor-pointer"
+      onClick={handleCardClick}
+    >
+      {product.imageUrl ? (
+        <img src={product.imageUrl} alt={product.name} className="w-full h-32 sm:h-40 object-cover" />
+      ) : (
+        <div className="w-full h-32 sm:h-40 bg-credigo-dark flex items-center justify-center text-gray-500">No Image</div>
+      )}
+      <div className="p-4 flex flex-col flex-grow">
+        <h3 className="font-semibold text-lg text-credigo-light mb-1 truncate flex-grow">{product.name}</h3>
+        <p className="text-sm text-gray-400 mb-2">Game: {product.platformName || 'Unknown'}</p>
+        <div className="flex justify-between items-center mt-auto pt-2">
+          <span className="text-xl font-bold text-credigo-light">
+            ₱{product.price ? parseFloat(product.price).toFixed(2) : '0.00'}
+          </span>
+          {/* Buy button with onClick propagation stopped */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click handler
+              onBuyClick(product);
+            }}
+            className="px-3 py-1 bg-credigo-button text-credigo-dark rounded-md hover:bg-opacity-90 text-sm font-semibold transition duration-150"
+          >
+            Buy
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
-
+  );
+};
 
 function ProductsPage() {
   const [products, setProducts] = useState([]);

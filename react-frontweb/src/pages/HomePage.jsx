@@ -266,7 +266,7 @@ function HomePage() {
                     <span className="text-gray-900 font-medium">${item.price.toFixed(2)}</span>
                     {item.discount && <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">{item.discount} OFF</span>}
                   </p>
-                  <Link to={`/home/products`} className="mt-2 text-xs text-blue-600 font-medium hover:underline">View details</Link>
+                  <Link to={`/home/products/${item.id}`} className="mt-2 text-xs text-blue-600 font-medium hover:underline">View details</Link>
                 </div>
               </div>
             ))}

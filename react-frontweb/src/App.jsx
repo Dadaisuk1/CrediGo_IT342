@@ -21,6 +21,7 @@ const Page404 = lazy(() => import('./pages/Page404'));
 // User Pages
 const HomePage = lazy(() => import('./pages/HomePage'));
 const ProductsPage = lazy(() => import('./pages/ProductsPage'));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'));
 const WalletPage = lazy(() => import('./pages/WalletPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const WishlistPage = lazy(() => import('./pages/WishlistPage'));
@@ -65,6 +66,7 @@ function App() {
         <Route path="/home" element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/" replace />}>
           <Route index element={<HomePage />} />
           <Route path="products" element={<ProductsPage />} />
+          <Route path="products/:productId" element={<ProductDetailPage />} />
           <Route path="wallet" element={<WalletPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="wishlist" element={<WishlistPage />} />
