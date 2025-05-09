@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../config/api.config';
 
-// Remove base URL configuration since we'll use direct URLs
+// Create axios instance with base URL
 const apiClient = axios.create({
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,12 +14,15 @@ const apiClient = axios.create({
 // Request interceptor to add JWT token to Authorization header
 apiClient.interceptors.request.use(
   (config) => {
+    // Skip token check for authentication endpoints
+    const isAuthEndpoint = config.url.includes('/api/auth/');
+
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
-    } else {
-      console.warn('No token found. Redirecting to login.');
-      // Optional: Redirect to login if token is missing
+    } else if (!isAuthEndpoint) {
+      console.warn('No token found for protected route.');
+      // Only redirect for non-auth endpoints
       window.location.href = '/login';
     }
     return config;
@@ -60,7 +65,7 @@ apiClient.interceptors.response.use(
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const loginUser = (credentials) => {
-  return apiClient.post('https://credigo-it342.onrender.com/api/auth/login', credentials);
+  return apiClient.post('/api/auth/login', credentials);
 };
 
 /**
@@ -69,7 +74,7 @@ export const loginUser = (credentials) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const registerUser = (userData) => {
-  return apiClient.post('https://credigo-it342.onrender.com/api/auth/register', userData);
+  return apiClient.post('/api/auth/register', userData);
 };
 
 // --- Wallet API Calls ---
@@ -79,16 +84,29 @@ export const registerUser = (userData) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const getWallet = () => {
-  return apiClient.get('https://credigo-it342.onrender.com/api/wallet/me');
+  return apiClient.get('/api/wallet/me');
 };
 
 /**
- * Creates a Stripe Payment Intent for topping up the wallet.
- * @param {object} topUpData - { amount: 100.00 }
- * @returns {Promise<axios.Response>} The Axios response object containing the clientSecret.
+ * Creates a PayMongo Payment Intent for topping up the wallet.
+ * @param {object} topUpData - Payment data object containing:
+ *   - amount: 100.00 (required)
+ *   - paymentType: 'card', 'gcash', or 'paymaya' (required)
+ *   - card: { number, exp_month, exp_year, cvc, name } (for card payments)
+ *   - mobileNumber: '09XXXXXXXXX' (for gcash/paymaya payments)
+ * @returns {Promise<axios.Response>} The Axios response object containing the payment details.
  */
 export const createWalletTopUpIntent = (topUpData) => {
-  return apiClient.post('https://credigo-it342.onrender.com/api/wallet/create-payment-intent', topUpData);
+  return apiClient.post('/api/payments/create-payment-intent', topUpData);
+};
+
+/**
+ * Checks the status of a payment intent and automatically credits wallet if successful.
+ * @param {string} paymentIntentId - The ID of the payment intent to check.
+ * @returns {Promise<axios.Response>} The Axios response object with payment status.
+ */
+export const checkPaymentStatus = (paymentIntentId) => {
+  return apiClient.get(`/api/payments/status/${paymentIntentId}`);
 };
 
 // --- Product/Platform API Calls ---
@@ -100,7 +118,7 @@ export const createWalletTopUpIntent = (topUpData) => {
  */
 export const getAvailableProducts = (platformId) => {
   const params = platformId ? { platformId } : {};
-  return apiClient.get('https://credigo-it342.onrender.com/api/products', { params });
+  return apiClient.get('/api/products', { params });
 };
 
 /**
@@ -109,7 +127,7 @@ export const getAvailableProducts = (platformId) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const getProductById = (productId) => {
-  return apiClient.get(`https://credigo-it342.onrender.com/api/products/${productId}`);
+  return apiClient.get(`/api/products/${productId}`);
 };
 
 /**
@@ -117,7 +135,7 @@ export const getProductById = (productId) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const getPlatforms = () => {
-  return apiClient.get('https://credigo-it342.onrender.com/api/platforms');
+  return apiClient.get('/api/platforms');
 };
 
 // --- Transaction API Calls ---
@@ -128,7 +146,7 @@ export const getPlatforms = () => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const purchaseProduct = (purchaseData) => {
-  return apiClient.post('https://credigo-it342.onrender.com/api/transactions/purchase', purchaseData);
+  return apiClient.post('/api/transactions/purchase', purchaseData);
 };
 
 /**
@@ -136,7 +154,7 @@ export const purchaseProduct = (purchaseData) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const getTransactionHistory = () => {
-  return apiClient.get('https://credigo-it342.onrender.com/api/transactions/history');
+  return apiClient.get('/api/transactions/history');
 };
 
 // --- Wishlist API Calls ---
@@ -146,7 +164,7 @@ export const getTransactionHistory = () => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const getWishlist = () => {
-  return apiClient.get('https://credigo-it342.onrender.com/api/wishlist');
+  return apiClient.get('/api/wishlist');
 };
 
 /**
@@ -155,7 +173,7 @@ export const getWishlist = () => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const addToWishlist = (productId) => {
-  return apiClient.post(`https://credigo-it342.onrender.com/api/wishlist/${productId}`);
+  return apiClient.post(`/api/wishlist/${productId}`);
 };
 
 /**
@@ -164,7 +182,7 @@ export const addToWishlist = (productId) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const removeFromWishlist = (productId) => {
-  return apiClient.delete(`https://credigo-it342.onrender.com/api/wishlist/${productId}`);
+  return apiClient.delete(`/api/wishlist/${productId}`);
 };
 
 // --- Review API Calls ---
@@ -175,7 +193,7 @@ export const removeFromWishlist = (productId) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const getReviewsForProduct = (productId) => {
-  return apiClient.get(`https://credigo-it342.onrender.com/api/products/${productId}/reviews`);
+  return apiClient.get(`/api/products/${productId}/reviews`);
 };
 
 /**
@@ -185,7 +203,7 @@ export const getReviewsForProduct = (productId) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const addReview = (productId, reviewData) => {
-  return apiClient.post(`https://credigo-it342.onrender.com/api/products/${productId}/reviews`, reviewData);
+  return apiClient.post(`/api/products/${productId}/reviews`, reviewData);
 };
 
 /**
@@ -194,7 +212,7 @@ export const addReview = (productId, reviewData) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const deleteReview = (productId) => {
-  return apiClient.delete(`https://credigo-it342.onrender.com/api/products/${productId}/reviews`);
+  return apiClient.delete(`/api/products/${productId}/reviews`);
 };
 
 // --- Admin Dashboard API Calls ---
@@ -204,7 +222,7 @@ export const deleteReview = (productId) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const getAdminDashboardStats = () => {
-  return apiClient.get('https://credigo-it342.onrender.com/api/admin/stats');
+  return apiClient.get('/api/admin/stats');
 };
 
 // --- Admin KYC API Calls ---
@@ -214,7 +232,7 @@ export const getAdminDashboardStats = () => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const getKYCRequests = () => {
-  return apiClient.get('https://credigo-it342.onrender.com/api/admin/kyc');
+  return apiClient.get('/api/admin/kyc');
 };
 
 /**
@@ -224,7 +242,7 @@ export const getKYCRequests = () => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const approveKYCRequest = (id, comment = '') => {
-  return apiClient.put(`https://credigo-it342.onrender.com/api/admin/kyc/${id}/approve`, null, { params: { comment } });
+  return apiClient.put(`/api/admin/kyc/${id}/approve`, null, { params: { comment } });
 };
 
 /**
@@ -234,7 +252,7 @@ export const approveKYCRequest = (id, comment = '') => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const rejectKYCRequest = (id, comment = '') => {
-  return apiClient.put(`https://credigo-it342.onrender.com/api/admin/kyc/${id}/reject`, null, { params: { comment } });
+  return apiClient.put(`/api/admin/kyc/${id}/reject`, null, { params: { comment } });
 };
 
 /**
@@ -243,7 +261,24 @@ export const rejectKYCRequest = (id, comment = '') => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const deleteKYCRequest = (id) => {
-  return apiClient.delete(`https://credigo-it342.onrender.com/api/admin/kyc/${id}`);
+  return apiClient.delete(`/api/admin/kyc/${id}`);
+};
+
+/**
+ * Manually confirms a payment for testing/demo purposes.
+ * @param {object} paymentData - { paymentIntentId: '...', amount: 100.00 }
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const confirmTestPayment = (paymentData) => {
+  return apiClient.post('/api/payments/test-confirm-payment', paymentData);
+};
+
+/**
+ * Fetches all pending payments that are awaiting confirmation.
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const getPendingPayments = () => {
+  return apiClient.get('/api/payments/pending');
 };
 
 export default apiClient;

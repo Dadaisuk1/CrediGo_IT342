@@ -2,6 +2,7 @@ package com.credigo.backend.controller;
 
 
 import com.credigo.backend.dto.PaymentResponse;
+import com.credigo.backend.dto.PaymentStatusResponse;
 import org.springframework.beans.factory.annotation.Value;
 import com.credigo.backend.dto.WalletTopUpRequest;
 import com.credigo.backend.service.PaymentService;
@@ -172,7 +173,7 @@ public class PaymentController {
      * Helper method to process the attributes of a successful payment.paid event.
      * Adapt fields based on the actual structure of the 'payment.paid' event
      * attributes.
-     * 
+     *
      * @param attributes The attributes map from the webhook event data.
      */
     private void processPaymentPaidEvent(Map<String, Object> attributes) {
@@ -262,7 +263,7 @@ public class PaymentController {
     /**
      * Helper method to process the attributes of a successful payment intent.
      * Kept for reference or if you handle payment_intent events elsewhere.
-     * 
+     *
      * @param attributes The attributes map from the webhook event data.
      */
     private void processSuccessfulPaymentIntent(Map<String, Object> attributes) {
@@ -417,6 +418,131 @@ public class PaymentController {
             log.warn("Webhook signature mismatch! Provided: {}, Calculated: {}", signatureToCompare, calculatedHashHex);
         }
         return isValid;
+    }
+
+    @PostMapping("/create-payment-link/{orderId}")
+    public ResponseEntity<?> createPaymentLink(@PathVariable String orderId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated.");
+            }
+            String username = authentication.getName();
+
+            PaymentResponse response = paymentService.createPaymentLink(orderId, username);
+            return ResponseEntity.ok(Map.of("checkoutUrl", response.getCheckoutUrl()));
+        } catch (Exception e) {
+            log.error("Error creating payment link for orderId {}: {}", orderId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to create payment link: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/verify/{orderId}")
+    public ResponseEntity<?> verifyPayment(@PathVariable String orderId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated.");
+            }
+            String username = authentication.getName();
+
+            boolean isVerified = paymentService.verifyPayment(orderId, username);
+            return ResponseEntity.ok(Map.of("verified", isVerified));
+        } catch (Exception e) {
+            log.error("Error verifying payment for orderId {}: {}", orderId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to verify payment: " + e.getMessage());
+        }
+    }
+
+    // For testing only - NOT FOR PRODUCTION
+    @PostMapping("/test-confirm-payment")
+    public ResponseEntity<?> testConfirmPayment(@RequestBody Map<String, Object> requestBody) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated.");
+        }
+        String username = authentication.getName();
+
+        String paymentIntentId = (String) requestBody.get("paymentIntentId");
+        if (paymentIntentId == null || paymentIntentId.isBlank()) {
+            return ResponseEntity.badRequest().body("Missing paymentIntentId");
+        }
+
+        BigDecimal amount = null;
+        try {
+            if (requestBody.get("amount") instanceof Number) {
+                double amountValue = ((Number) requestBody.get("amount")).doubleValue();
+                amount = BigDecimal.valueOf(amountValue);
+            } else if (requestBody.get("amount") instanceof String) {
+                amount = new BigDecimal((String) requestBody.get("amount"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Invalid amount format");
+        }
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().body("Amount must be positive");
+        }
+
+        try {
+            // Check if amount is in centavos (large value) and convert to PHP if needed
+            boolean isAmountInCentavos = amount.compareTo(new BigDecimal("1000")) > 0;
+            BigDecimal phpAmount = isAmountInCentavos
+                ? amount.divide(new BigDecimal("100"))
+                : amount;
+
+            log.info("Test endpoint: Manually crediting user {} wallet with {} PHP, paymentIntentId: {}",
+                    username, phpAmount, paymentIntentId);
+
+            // Add funds to wallet
+            walletService.addFundsToWallet(
+                username,
+                phpAmount,
+                paymentIntentId,
+                "Test wallet top-up via PayMongo"
+            );
+
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Wallet credited successfully",
+                "amount", phpAmount,
+                "paymentIntentId", paymentIntentId
+            ));
+        } catch (Exception e) {
+            log.error("Error in test confirm payment: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to process test payment: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/status/{paymentIntentId}")
+    public ResponseEntity<?> checkPaymentStatus(@PathVariable String paymentIntentId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated.");
+        }
+        String username = authentication.getName();
+
+        try {
+            PaymentStatusResponse statusResponse = paymentService.checkPaymentStatus(paymentIntentId, username);
+
+            if ("not_found".equals(statusResponse.getStatus())) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(statusResponse);
+            }
+
+            return ResponseEntity.ok(statusResponse);
+        } catch (Exception e) {
+            log.error("Error checking payment status for {}: {}", paymentIntentId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "status", "error",
+                    "message", "Failed to check payment status: " + e.getMessage()
+                ));
+        }
     }
 
 }
