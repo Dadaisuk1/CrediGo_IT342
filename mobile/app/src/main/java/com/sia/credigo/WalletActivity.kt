@@ -15,10 +15,12 @@ import com.sia.credigo.model.Transaction
 import com.sia.credigo.model.TransactionType
 import com.sia.credigo.model.User
 import com.sia.credigo.model.Wallet
+import com.sia.credigo.model.WalletTopUpRequest
 import com.sia.credigo.viewmodel.TransactionViewModel
 import com.sia.credigo.viewmodel.UserViewModel
 import com.sia.credigo.viewmodel.WalletViewModel
 import kotlinx.coroutines.*
+import java.math.BigDecimal
 
 class WalletActivity : AppCompatActivity() {
     // ViewModels
@@ -55,6 +57,9 @@ class WalletActivity : AppCompatActivity() {
     // Coroutine scope
     private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
 
+    // Wallet limits
+    private val MAX_WALLET_BALANCE = BigDecimal(1000000)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_wallet)
@@ -78,8 +83,8 @@ class WalletActivity : AppCompatActivity() {
         // Initialize UI components
         initializeViews()
 
-        // Load wallet data
-        walletViewModel.getWalletByUserId(currentUser.userid.toLong())
+        // Load wallet data - use the new fetchMyWallet method
+        walletViewModel.fetchMyWallet()
 
         // Load the latest user data
         lifecycleScope.launch {
@@ -100,8 +105,8 @@ class WalletActivity : AppCompatActivity() {
                 currentUser = it
                 // Update the app's logged in user
                 (application as CredigoApp).loggedInuser = it
-                // Reload wallet data if user changes
-                walletViewModel.getWalletByUserId(currentUser.userid.toLong())
+                // Reload wallet data if user changes - use fetchMyWallet()
+                walletViewModel.fetchMyWallet()
             }
         }
 
@@ -141,7 +146,7 @@ class WalletActivity : AppCompatActivity() {
 
     private fun updateUI() {
         // Format wallet balance with commas and two decimal points
-        val balance = currentWallet?.balance ?: 0.0
+        val balance = currentWallet?.balance ?: BigDecimal.ZERO
         val formattedBalance = String.format("%,.2f", balance)
         balanceTextView.text = "₱$formattedBalance"
 
@@ -177,8 +182,8 @@ class WalletActivity : AppCompatActivity() {
             val amountText = amountEditText.text.toString()
             if (amountText.isNotEmpty() && selectedPaymentOption != null) {
                 try {
-                    val amount = amountText.toDouble()
-                    if (amount > 0) {
+                    val amount = BigDecimal(amountText)
+                    if (amount > BigDecimal.ZERO) {
                         // Get current wallet
                         val wallet = currentWallet
                         if (wallet == null) {
@@ -187,8 +192,8 @@ class WalletActivity : AppCompatActivity() {
                         }
 
                         // Check if new balance would exceed 1,000,000
-                        val newBalance = wallet.balance + amount
-                        if (newBalance > 1000000) {
+                        val newBalance = wallet.balance.add(amount)
+                        if (newBalance > MAX_WALLET_BALANCE) {
                             // Already showing warning via text watcher
                         } else {
                             // Disable button to prevent multiple clicks
@@ -199,8 +204,8 @@ class WalletActivity : AppCompatActivity() {
                                 val success = createDeposit(amount)
 
                                 if (success) {
-                                    // Update wallet balance
-                                    walletViewModel.updateWalletBalance(wallet.id.toLong(), newBalance)
+                                    // Update wallet through proper API call
+                                    walletViewModel.createTopUpPaymentIntent(amount)
 
                                     // Update UI
                                     // updateUI() will be called by the observer
@@ -260,12 +265,12 @@ class WalletActivity : AppCompatActivity() {
                 val amountText = s.toString()
                 if (amountText.isNotEmpty()) {
                     try {
-                        val amount = amountText.toDouble()
-                        val currentBalance = currentWallet?.balance ?: 0.0
-                        val newBalance = currentBalance + amount
+                        val amount = BigDecimal(amountText)
+                        val currentBalance = currentWallet?.balance ?: BigDecimal.ZERO
+                        val newBalance = currentBalance.add(amount)
 
                         // Check if new balance exceeds limit
-                        if (newBalance > 1000000) {
+                        if (newBalance > MAX_WALLET_BALANCE) {
                             limitWarningText.visibility = View.VISIBLE
                             selectionErrorText.visibility = View.INVISIBLE
                             cashInButton.isEnabled = false
@@ -341,7 +346,7 @@ class WalletActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun createDeposit(amount: Double): Boolean {
+    private suspend fun createDeposit(amount: BigDecimal): Boolean {
         return withContext(Dispatchers.IO) {
             try {
                 // Ensure we have a valid payment option
@@ -355,7 +360,7 @@ class WalletActivity : AppCompatActivity() {
                 val transaction = Transaction(
                     userid = currentUser.userid.toLong(),
                     type = selectedPaymentOption!!,  // We know it's not null here
-                    amount = amount,
+                    amount = amount.toDouble(),  // Convert BigDecimal to Double for compatibility
                     timestamp = System.currentTimeMillis(),
                     transactionType = TransactionType.DEPOSIT
                 )

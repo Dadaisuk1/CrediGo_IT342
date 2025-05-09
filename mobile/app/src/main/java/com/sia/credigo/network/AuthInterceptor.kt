@@ -2,7 +2,7 @@ package com.sia.credigo.network
 
 import android.content.Context
 import androidx.lifecycle.LifecycleOwner
-import com.sia.credigo.session.SessionManager
+import com.sia.credigo.utils.SessionManager
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -38,7 +38,7 @@ class AuthInterceptor(
             if (response.code == 401 || response.code == 403) {
                 // Token expired or invalid
                 runBlocking { 
-                    sessionManager.clearSession() 
+                    sessionManager.clearLoginState() 
                 }
                 response
             } else {

@@ -20,6 +20,11 @@ object RetrofitClient {
     // Use all three URLs in sequence for better connectivity
     var BASE_URL = EMULATOR_URL
     private const val DEBUG_MODE = true
+    
+    // Increased timeouts for better reliability
+    private const val CONNECTION_TIMEOUT = 120L // seconds
+    private const val READ_TIMEOUT = 120L // seconds
+    private const val WRITE_TIMEOUT = 120L // seconds
 
     // Add headers to every request to avoid 403 errors
     private class DefaultHeadersInterceptor : Interceptor {
@@ -38,6 +43,7 @@ object RetrofitClient {
 
     // Create the default client for non-authenticated requests (fixed duplication)
     private val defaultClient: OkHttpClient by lazy {
+        Log.d(TAG, "Creating default OkHttpClient")
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = if (DEBUG_MODE) {
                 HttpLoggingInterceptor.Level.BODY
@@ -49,15 +55,16 @@ object RetrofitClient {
         OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
             .addInterceptor(DefaultHeadersInterceptor())
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(CONNECTION_TIMEOUT, TimeUnit.SECONDS)
+            .readTimeout(READ_TIMEOUT, TimeUnit.SECONDS)
+            .writeTimeout(WRITE_TIMEOUT, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
     }
 
     // Try each URL in sequence until one works
     fun getWorkingRetrofit(): Retrofit {
+        Log.d(TAG, "Attempting to find working API endpoint")
         val urls = listOf(EMULATOR_URL, PRODUCTION_URL, LOCALHOST_URL)
         
         for (url in urls) {
@@ -80,6 +87,7 @@ object RetrofitClient {
     }
 
     val retrofit: Retrofit by lazy {
+        Log.d(TAG, "Creating Retrofit instance with base URL: $BASE_URL")
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(defaultClient)
@@ -107,6 +115,7 @@ object RetrofitClient {
 
     // Create a client with the AuthInterceptor
     fun createAuthenticatedClient(context: android.content.Context, lifecycleOwner: androidx.lifecycle.LifecycleOwner? = null): OkHttpClient {
+        Log.d(TAG, "Creating authenticated OkHttpClient")
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = if (DEBUG_MODE) {
                 HttpLoggingInterceptor.Level.BODY
@@ -119,18 +128,22 @@ object RetrofitClient {
             .addInterceptor(loggingInterceptor)
             .addInterceptor(DefaultHeadersInterceptor())
             .addInterceptor(AuthInterceptor(context, lifecycleOwner))
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(CONNECTION_TIMEOUT, TimeUnit.SECONDS)
+            .readTimeout(READ_TIMEOUT, TimeUnit.SECONDS)
+            .writeTimeout(WRITE_TIMEOUT, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
     }
 
     // Public API services that don't require authentication
-    val authService: AuthApi = retrofit.create(AuthApi::class.java)
+    val authService: AuthApi by lazy {
+        Log.d(TAG, "Creating AuthApi service")
+        retrofit.create(AuthApi::class.java)
+    }
 
     // Create authenticated API services
     fun createAuthenticatedServices(context: android.content.Context, lifecycleOwner: androidx.lifecycle.LifecycleOwner? = null): AuthenticatedServices {
+        Log.d(TAG, "Creating authenticated API services")
         val authenticatedClient = createAuthenticatedClient(context, lifecycleOwner)
         val authenticatedRetrofit = Retrofit.Builder()
             .baseUrl(BASE_URL)
@@ -163,12 +176,40 @@ object RetrofitClient {
     )
 
     // For backward compatibility - these will be deprecated
-    val mailService: MailApi by lazy { retrofit.create(MailApi::class.java) }
-    val productService: ProductApi by lazy { retrofit.create(ProductApi::class.java) }
-    val wishlistService: WishlistApi by lazy { retrofit.create(WishlistApi::class.java) }
-    val platformService: PlatformApi by lazy { retrofit.create(PlatformApi::class.java) }
-    val userService: UsersApi by lazy { retrofit.create(UsersApi::class.java) }
-    val walletService: WalletApi by lazy { retrofit.create(WalletApi::class.java) }
-    val transactionService: TransactionApi by lazy { retrofit.create(TransactionApi::class.java) }
-    val activityLogService: ActivityLogApi by lazy { retrofit.create(ActivityLogApi::class.java) }
+    val mailService: MailApi by lazy { 
+        Log.d(TAG, "Creating MailApi service")
+        retrofit.create(MailApi::class.java) 
+    }
+    val productService: ProductApi by lazy { 
+        Log.d(TAG, "Creating ProductApi service")
+        retrofit.create(ProductApi::class.java) 
+    }
+    val wishlistService: WishlistApi by lazy { 
+        Log.d(TAG, "Creating WishlistApi service")
+        retrofit.create(WishlistApi::class.java) 
+    }
+    val platformService: PlatformApi by lazy { 
+        Log.d(TAG, "Creating PlatformApi service")
+        retrofit.create(PlatformApi::class.java) 
+    }
+    val userService: UsersApi by lazy { 
+        Log.d(TAG, "Creating UsersApi service")
+        retrofit.create(UsersApi::class.java) 
+    }
+    val walletService: WalletApi by lazy { 
+        Log.d(TAG, "Creating WalletApi service")
+        retrofit.create(WalletApi::class.java) 
+    }
+    val transactionService: TransactionApi by lazy { 
+        Log.d(TAG, "Creating TransactionApi service")
+        retrofit.create(TransactionApi::class.java) 
+    }
+    val activityLogService: ActivityLogApi by lazy { 
+        Log.d(TAG, "Creating ActivityLogApi service")
+        retrofit.create(ActivityLogApi::class.java) 
+    }
+    
+    init {
+        Log.d(TAG, "RetrofitClient initialized with base URL: $BASE_URL")
+    }
 }

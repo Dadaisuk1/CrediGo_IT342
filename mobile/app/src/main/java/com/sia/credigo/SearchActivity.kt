@@ -17,7 +17,7 @@ import com.sia.credigo.adapters.ProductAdapter
 import com.sia.credigo.app.CredigoApp
 import com.sia.credigo.model.*
 
-import com.sia.credigo.model.Wishlist
+
 import com.sia.credigo.utils.DialogUtils
 import com.sia.credigo.viewmodel.*
 import com.sia.credigo.model.Transaction
@@ -31,6 +31,8 @@ import android.view.inputmethod.InputMethodManager
 import android.text.TextWatcher
 import android.text.Editable
 import com.sia.credigo.utils.SortButtonsHandler
+import com.sia.credigo.model.WishlistItem
+
 class SearchActivity : AppCompatActivity() {
     companion object {
         private const val MAIL_LIST_REQUEST_CODE = 100
@@ -60,7 +62,7 @@ class SearchActivity : AppCompatActivity() {
     private lateinit var errorMessageView: TextView
 
     private var currentUserId: Long = -1
-    private val wishlistedProducts = mutableSetOf<Long>()
+    private val wishlistedProducts = mutableSetOf<Int>()
     private val searchResults = mutableListOf<Product>()
     private val categoryResults = mutableListOf<Platform>()
     private var selectedProduct: Product? = null
@@ -184,16 +186,16 @@ class SearchActivity : AppCompatActivity() {
         })
 
         // Load user's wishlist
-        wishlistViewModel.getUserWishlist(currentUserId)
+        wishlistViewModel.loadUserWishlist()
 
         // Observe wishlist changes
-        wishlistViewModel.userWishlist.observe(this, Observer { wishlist ->
+        wishlistViewModel.wishlistItems.observe(this, Observer { items ->
             // Clear previous wishlist
             wishlistedProducts.clear()
 
             // Add all product IDs from wishlist
-            wishlist?.forEach { item ->
-                wishlistedProducts.add(item.productid)
+            items.forEach { item ->
+                wishlistedProducts.add(item.productId)
             }
 
             // Update search results
@@ -201,7 +203,7 @@ class SearchActivity : AppCompatActivity() {
         })
 
         // Load products
-        productViewModel.allProducts()
+        productViewModel.fetchProducts()
 
         // Observe products
         productViewModel.products.observe(this, Observer { products ->
@@ -382,7 +384,7 @@ class SearchActivity : AppCompatActivity() {
                 title = "Remove from wishlist",
                 message = "are you sure you want to remove this item?",
                 onConfirm = {
-                    wishlistViewModel.removeFromWishlist(currentUserId, product.productid)
+                    wishlistViewModel.removeFromWishlist(product.productid)
                     wishlistedProducts.remove(product.productid)
                     (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
                     Toast.makeText(this, "Removed from wishlist", Toast.LENGTH_SHORT).show()
@@ -390,11 +392,7 @@ class SearchActivity : AppCompatActivity() {
             )
         } else {
             // Add to wishlist
-            val wishlist = Wishlist(
-                userid = currentUserId,
-                productid = product.productid
-            )
-            wishlistViewModel.addToWishlist(wishlist)
+            wishlistViewModel.addToWishlist(product.productid)
             wishlistedProducts.add(product.productid)
             (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
             Toast.makeText(this, "Added to wishlist", Toast.LENGTH_SHORT).show()
@@ -441,8 +439,6 @@ class SearchActivity : AppCompatActivity() {
         val btnSortLowHigh = findViewById<Button>(R.id.btn_sort_low_high)
         val btnSortAZ = findViewById<Button>(R.id.btn_sort_a_z)
 
-        // Use TransactionViewModel directly instead of repository
-
         // Create the sort buttons handler
         sortButtonsHandler = SortButtonsHandler(
             btnSortPopular,
@@ -467,10 +463,14 @@ class SearchActivity : AppCompatActivity() {
             } else {
                 Log.d("SearchActivity", "Keeping existing ${searchResults.size} search results")
             }
-            // If sortedProducts is empty but searchResults already has items, we keep them
         }
 
-        // No button selected by default (will use MOST_RECENT sort)
+        // Initialize with current products if available
+        productViewModel.products.value?.let { products ->
+            if (products.isNotEmpty()) {
+                sortButtonsHandler.updateProducts(products, false) // Don't apply sort initially
+            }
+        }
     }
 
     private fun hideKeyboard() {
@@ -510,7 +510,7 @@ class SearchActivity : AppCompatActivity() {
                         val transaction = Transaction(
                             userid = currentUserId,
                             type = product.name,
-                            amount = product.price,
+                            amount = product.price.toDouble(),
                             timestamp = System.currentTimeMillis(),
                             transactionType = TransactionType.PURCHASE
                         )
@@ -521,9 +521,11 @@ class SearchActivity : AppCompatActivity() {
                         }
 
                         // Update wallet balance
-                        val newBalance = wallet.balance - product.price
+                        val newBalance = wallet.balance.subtract(product.price)
+                        // Note: This would normally use the proper API method in production
+                        // This is a temporary fix for compatibility
                         withContext(Dispatchers.IO) {
-                            walletViewModel.updateWalletBalance(wallet.id.toLong(), newBalance)
+                            walletViewModel.updateWalletBalance(wallet.id.toLong(), newBalance.toDouble())
                         }
 
                         // Get category name

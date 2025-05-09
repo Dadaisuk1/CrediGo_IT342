@@ -7,18 +7,18 @@ import retrofit2.http.*
 
 
 interface PlatformApi {
-    @GET("platforms")
-    suspend fun getAllPlatforms(): Response<BaseResponse<List<Platform>>>
+    @GET("api/platforms")
+    suspend fun getAllPlatforms(): Response<List<Platform>>
 
-    @GET("platforms/{id}")
-    suspend fun getPlatformById(@Path("id") id: Long): Response<BaseResponse<Platform>>
+    @GET("api/platforms/{id}")
+    suspend fun getPlatformById(@Path("id") id: Long): Response<Platform>
 
-    @POST("platforms/admin")
-    suspend fun createPlatform(@Body body: Platform): Response<BaseResponse<Platform>>
+    @POST("api/platforms/admin")
+    suspend fun createPlatform(@Body body: Platform): Response<Platform>
 
-    @PUT("platforms/admin/{id}")
-    suspend fun updatePlatform(@Path("id") id: Long, @Body body: Platform): Response<BaseResponse<Platform>>
+    @PUT("api/platforms/admin/{id}")
+    suspend fun updatePlatform(@Path("id") id: Long, @Body body: Platform): Response<Platform>
 
-    @DELETE("platforms/admin/{id}")
-    suspend fun deletePlatform(@Path("id") id: Long): Response<BaseResponse<Void>>
+    @DELETE("api/platforms/admin/{id}")
+    suspend fun deletePlatform(@Path("id") id: Long): Response<Void>
 }

@@ -5,5 +5,5 @@ data class Platform(
     val name: String,
     val description: String?,
     val logoUrl: String?,
-    val createdAt: Long = System.currentTimeMillis()  // Preferred for domain logic
+    val createdAt: String? = null  // Changed from Long to String? to match server response
 )

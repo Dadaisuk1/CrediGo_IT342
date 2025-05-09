@@ -1,20 +1,28 @@
 package com.sia.credigo.network
 
-import com.sia.credigo.model.Wishlist
-import com.sia.credigo.network.models.BaseResponse
+import com.sia.credigo.model.WishlistItem
 import retrofit2.Response
 import retrofit2.http.*
 
 interface WishlistApi {
-    @GET("wishlist")
-    suspend fun getAllWishlists(): Response<BaseResponse<List<Wishlist>>>
+    /**
+     * Get current user's wishlist
+     * Matches: WishlistController.getCurrentUserWishlist
+     */
+    @GET("api/wishlist")
+    suspend fun getCurrentUserWishlist(): Response<List<WishlistItem>>
 
-    @GET("wishlist/{id}")
-    suspend fun getWishlistById(@Path("id") id: Long): Response<BaseResponse<Wishlist>>
+    /**
+     * Add product to wishlist
+     * Matches: WishlistController.addProductToWishlist
+     */
+    @POST("api/wishlist/{productId}")
+    suspend fun addToWishlist(@Path("productId") productId: Int): Response<WishlistItem>
 
-    @POST("wishlist/{productId}")
-    suspend fun addToWishlist(@Path("productId") productId: Long): Response<BaseResponse<Void>>
-
-    @DELETE("wishlist/{productId}")
-    suspend fun removeFromWishlist(@Path("productId") productId: Long): Response<BaseResponse<Void>>
+    /**
+     * Remove product from wishlist
+     * Matches: WishlistController.removeProductFromWishlist
+     */
+    @DELETE("api/wishlist/{productId}")
+    suspend fun removeFromWishlist(@Path("productId") productId: Int): Response<Void>
 }

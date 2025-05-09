@@ -1,138 +1,130 @@
 package com.sia.credigo.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.sia.credigo.model.Wishlist
+import com.sia.credigo.model.WishlistItem
 import com.sia.credigo.network.RetrofitClient
 import com.sia.credigo.network.models.BaseResponse
 import kotlinx.coroutines.launch
 import retrofit2.Response
 
 class WishlistViewModel : ViewModel() {
+    private val TAG = "WishlistViewModel"
     private val wishlistService = RetrofitClient.wishlistService
 
-    private val _allWishlists = MutableLiveData<List<Wishlist>>()
-    val allWishlists: LiveData<List<Wishlist>> = _allWishlists
-
-    private val _userWishlist = MutableLiveData<List<Wishlist>>()
-    val userWishlist: LiveData<List<Wishlist>> = _userWishlist
+    private val _wishlistItems = MutableLiveData<List<WishlistItem>>()
+    val wishlistItems: LiveData<List<WishlistItem>> = _wishlistItems
 
     private val _errorMessage = MutableLiveData<String?>()
     val errorMessage: LiveData<String?> = _errorMessage
 
-    fun loadWishlists() {
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
+
+    // Current user ID for wishlist operations
+    private var currentUserId: Int? = null
+
+    fun setCurrentUser(userId: Int) {
+        currentUserId = userId
+        // Load wishlist for the new user
+        loadUserWishlist()
+    }
+
+    fun loadUserWishlist() {
+        _isLoading.value = true
         viewModelScope.launch {
             try {
-                val response: Response<BaseResponse<List<Wishlist>>> = wishlistService.getAllWishlists()
+                Log.d(TAG, "Fetching user's wishlist")
+                val response = wishlistService.getCurrentUserWishlist()
                 if (response.isSuccessful) {
-                    response.body()?.let { apiResponse ->
-                        if (apiResponse.success) {
-                            _allWishlists.value = apiResponse.data ?: emptyList()
-                        } else {
-                            _errorMessage.value = apiResponse.message ?: "Failed to load wishlists"
-                        }
-                    } ?: run { _errorMessage.value = "Empty response" }
+                    val items = response.body() ?: emptyList()
+                    Log.d(TAG, "Fetched ${items.size} wishlist items")
+                    _wishlistItems.value = items
                 } else {
-                    _errorMessage.value = "HTTP ${response.code()}: ${response.message()}"
+                    Log.e(TAG, "Error fetching wishlist: ${response.code()} ${response.message()}")
+                    _errorMessage.value = "Failed to load wishlist: ${response.message()}"
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Network error: ${e.localizedMessage}"
+                Log.e(TAG, "Network error: ${e.message}", e)
+                _errorMessage.value = "Network error: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    suspend fun getWishlistById(wishlistId: Long): Wishlist? {
-        return try {
-            val response: Response<BaseResponse<Wishlist>> = wishlistService.getWishlistById(wishlistId)
-            if (response.isSuccessful) {
-                response.body()?.let { apiResponse ->
-                    if (apiResponse.success) {
-                        apiResponse.data
-                    } else {
-                        _errorMessage.value = apiResponse.message ?: "Failed to get wishlist"
-                        null
+    fun addToWishlist(productId: Int) {
+        val userId = currentUserId ?: run {
+            Log.e(TAG, "Cannot add to wishlist: No current user set")
+            _errorMessage.value = "Cannot add to wishlist: No user logged in"
+            return
+        }
+
+        _isLoading.value = true
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Adding product $productId to wishlist for user $userId")
+                val response = wishlistService.addToWishlist(productId)
+                if (response.isSuccessful) {
+                    // Add the new item to our local list
+                    response.body()?.let { newItem ->
+                        val currentList = _wishlistItems.value?.toMutableList() ?: mutableListOf()
+                        currentList.add(newItem)
+                        _wishlistItems.value = currentList
                     }
-                } ?: run {
-                    _errorMessage.value = "Empty response"
-                    null
-                }
-            } else {
-                _errorMessage.value = "HTTP ${response.code()}: ${response.message()}"
-                null
-            }
-        } catch (e: Exception) {
-            _errorMessage.value = "Error: ${e.localizedMessage}"
-            null
-        }
-    }
-
-    fun getUserWishlist(userId: Long) {
-        viewModelScope.launch {
-            try {
-                // For now, we'll filter all wishlists by userId
-                val response: Response<BaseResponse<List<Wishlist>>> = wishlistService.getAllWishlists()
-                if (response.isSuccessful) {
-                    response.body()?.let { apiResponse ->
-                        if (apiResponse.success) {
-                            val userWishlists = apiResponse.data?.filter { it.userid == userId } ?: emptyList()
-                            _userWishlist.value = userWishlists
-                        } else {
-                            _errorMessage.value = apiResponse.message ?: "Failed to get user wishlist"
-                        }
-                    } ?: run { _errorMessage.value = "Empty response" }
                 } else {
-                    _errorMessage.value = "HTTP ${response.code()}: ${response.message()}"
+                    Log.e(TAG, "Error adding to wishlist: ${response.code()} ${response.message()}")
+                    _errorMessage.value = "Failed to add to wishlist: ${response.message()}"
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Network error: ${e.localizedMessage}"
+                Log.e(TAG, "Network error: ${e.message}", e)
+                _errorMessage.value = "Network error: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    fun removeFromWishlist(userId: Long, productId: Long) {
+    fun removeFromWishlist(productId: Int) {
+        val userId = currentUserId ?: run {
+            Log.e(TAG, "Cannot remove from wishlist: No current user set")
+            _errorMessage.value = "Cannot remove from wishlist: No user logged in"
+            return
+        }
+
+        _isLoading.value = true
         viewModelScope.launch {
             try {
-                val response: Response<BaseResponse<Void>> = wishlistService.removeFromWishlist(productId)
+                Log.d(TAG, "Removing product $productId from wishlist for user $userId")
+                val response = wishlistService.removeFromWishlist(productId)
                 if (response.isSuccessful) {
-                    response.body()?.let { apiResponse ->
-                        if (apiResponse.success) {
-                            // Update the user's wishlist after removal
-                            getUserWishlist(userId)
-                        } else {
-                            _errorMessage.value = apiResponse.message ?: "Failed to remove from wishlist"
-                        }
-                    } ?: run { _errorMessage.value = "Empty response" }
+                    // Remove the item from our local list
+                    val currentList = _wishlistItems.value?.toMutableList() ?: mutableListOf()
+                    currentList.removeAll { it.productId == productId }
+                    _wishlistItems.value = currentList
                 } else {
-                    _errorMessage.value = "HTTP ${response.code()}: ${response.message()}"
+                    Log.e(TAG, "Error removing from wishlist: ${response.code()} ${response.message()}")
+                    _errorMessage.value = "Failed to remove from wishlist: ${response.message()}"
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Network error: ${e.localizedMessage}"
+                Log.e(TAG, "Network error: ${e.message}", e)
+                _errorMessage.value = "Network error: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    fun addToWishlist(wishlist: Wishlist) {
-        viewModelScope.launch {
-            try {
-                // Pass the correct parameter (e.g., wishlist.id)
-                val response: Response<BaseResponse<Void>> = wishlistService.addToWishlist(wishlist.wishlistid)
-                if (response.isSuccessful) {
-                    response.body()?.let { apiResponse ->
-                        if (apiResponse.success) {
-                            // Update the user's wishlist after addition
-                            getUserWishlist(wishlist.userid)
-                        } else {
-                            _errorMessage.value = apiResponse.message ?: "Failed to add to wishlist"
-                        }
-                    } ?: run { _errorMessage.value = "Empty response" }
-                } else {
-                    _errorMessage.value = "HTTP ${response.code()}: ${response.message()}"
-                }
-            } catch (e: Exception) {
-                _errorMessage.value = "Network error: ${e.localizedMessage}"
-            }
-        }
+    // Helper method to check if a product is in the wishlist
+    fun isProductInWishlist(productId: Int): Boolean {
+        return _wishlistItems.value?.any { it.productId == productId } ?: false
+    }
+
+    // Helper method to get wishlist item details for a product
+    fun getWishlistItemForProduct(productId: Int): WishlistItem? {
+        return _wishlistItems.value?.find { it.productId == productId }
     }
 }

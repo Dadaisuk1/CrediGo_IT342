@@ -40,10 +40,26 @@ class LoginActivity : AppCompatActivity() {
         // Check if user is already logged in
         val app = application as CredigoApp
         if (app.sessionManager.isLoggedIn()) {
-            // User is already logged in, redirect to home
-            startActivity(Intent(this, HomeActivity::class.java))
-            finish()
-            return
+            // Load user data from session
+            val user = app.sessionManager.getUserData()
+            if (user != null) {
+                Log.d(TAG, "Session found, restoring user: ${user.username}")
+                
+                // Set the loaded user as the current user
+                app.loggedInuser = user
+                app.isLoggedIn = true
+                
+                // User is already logged in, redirect to home
+                startActivity(Intent(this, HomeActivity::class.java))
+                finish()
+                return
+            } else {
+                // Session exists but user data is null, clear the invalid session
+                Log.d(TAG, "Invalid session found, clearing")
+                app.sessionManager.clearLoginState()
+            }
+        } else {
+            Log.d(TAG, "No session found, showing login screen")
         }
 
         setContentView(R.layout.activity_login)

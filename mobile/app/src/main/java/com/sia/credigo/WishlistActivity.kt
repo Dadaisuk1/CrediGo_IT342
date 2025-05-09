@@ -16,6 +16,7 @@ import com.sia.credigo.model.Mail
 import com.sia.credigo.model.Product
 import com.sia.credigo.model.Transaction
 import com.sia.credigo.model.Wallet
+import com.sia.credigo.model.WishlistItem
 import com.sia.credigo.utils.DialogUtils
 import com.sia.credigo.viewmodel.*
 import com.sia.credigo.viewmodel.PlatformViewModel
@@ -47,7 +48,7 @@ class WishlistActivity : AppCompatActivity() {
     private lateinit var errorMessageView: TextView
 
     private var currentUserId: Long = -1
-    private val wishlistedProducts = mutableSetOf<Long>()
+    private val wishlistedProducts = mutableSetOf<Int>()
     private val likedProducts = mutableListOf<Product>()
     private var selectedProduct: Product? = null
     private var currentWallet: Wallet? = null
@@ -94,7 +95,7 @@ class WishlistActivity : AppCompatActivity() {
         walletViewModel.userWallet.observe(this) { wallet ->
             wallet?.let {
                 currentWallet = it
-                // Update balance display with commas and two decimal points
+                // Update balance display with proper BigDecimal formatting
                 val formattedBalance = String.format("%,.2f", it.balance)
                 walletBalanceView.text = "₱$formattedBalance"
             }
@@ -126,22 +127,22 @@ class WishlistActivity : AppCompatActivity() {
         }
 
         // Load all products
-        productViewModel.allProducts()
+        productViewModel.fetchProducts()
         productViewModel.products.observe(this, Observer { products ->
             updateLikedProducts(products)
         })
 
         // Load user's wishlist
-        wishlistViewModel.getUserWishlist(currentUserId)
+        wishlistViewModel.loadUserWishlist()
 
         // Observe wishlist changes
-        wishlistViewModel.userWishlist.observe(this, Observer { wishlist ->
+        wishlistViewModel.wishlistItems.observe(this, Observer { items ->
             // Clear previous wishlist
             wishlistedProducts.clear()
 
             // Add all product IDs from wishlist
-            wishlist?.forEach { item ->
-                wishlistedProducts.add(item.productid)
+            items.forEach { item ->
+                wishlistedProducts.add(item.productId)
             }
 
             // Update liked products
@@ -210,13 +211,11 @@ class WishlistActivity : AppCompatActivity() {
             if (wallet != null && wallet.balance >= product.price) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        // No need to access database directly
-
                         // Create transaction
                         val transaction = Transaction(
                             userid = currentUserId,
                             type = product.name,
-                            amount = product.price,
+                            amount = product.price.toDouble(),
                             timestamp = System.currentTimeMillis()
                         )
 
@@ -229,15 +228,17 @@ class WishlistActivity : AppCompatActivity() {
                         val transactionId = transaction.transaction_id
 
                         // Update wallet balance
-                        val newBalance = wallet.balance - product.price
+                        val newBalance = wallet.balance.subtract(product.price)
+                        // Note: This would normally use the proper API method in production
+                        // This is a temporary fix for compatibility
                         withContext(Dispatchers.IO) {
-                            walletViewModel.updateWalletBalance(wallet.id.toLong(), newBalance)
+                            walletViewModel.updateWalletBalance(wallet.id.toLong(), newBalance.toDouble())
                         }
 
                         // Get platform name
                         val platformViewModel = ViewModelProvider(this@WishlistActivity).get(PlatformViewModel::class.java)
                         val platform = withContext(Dispatchers.IO) {
-                            platformViewModel.getPlatformById(product.platformid)
+                            platformViewModel.getPlatformById(product.platformid.toLong())
                         }
                         val platformName = platform?.name ?: "Unknown"
 
@@ -301,7 +302,7 @@ Best regards,
                 title = "Remove from wishlist",
                 message = "are you sure you want to remove this item?",
                 onConfirm = {
-                    wishlistViewModel.removeFromWishlist(currentUserId, product.productid)
+                    wishlistViewModel.removeFromWishlist(product.productid)
                     wishlistedProducts.remove(product.productid)
                     (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
                     Toast.makeText(this, "Removed from wishlist", Toast.LENGTH_SHORT).show()
@@ -309,6 +310,9 @@ Best regards,
             )
         } else {
             // This shouldn't happen in the likes screen, but handle it anyway
+            wishlistViewModel.addToWishlist(product.productid)
+            wishlistedProducts.add(product.productid)
+            (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
             Toast.makeText(this, "Added to wishlist", Toast.LENGTH_SHORT).show()
         }
     }

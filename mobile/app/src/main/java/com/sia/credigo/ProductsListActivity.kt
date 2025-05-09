@@ -17,12 +17,13 @@ import androidx.recyclerview.widget.RecyclerView
 import com.sia.credigo.adapters.ProductAdapter
 import com.sia.credigo.app.CredigoApp
 import com.sia.credigo.model.*
-import com.sia.credigo.model.Wishlist
+
 import com.sia.credigo.model.Mail
 import com.sia.credigo.model.Wallet
 import com.sia.credigo.utils.DialogUtils
 import com.sia.credigo.utils.SortButtonsHandler
 import com.sia.credigo.viewmodel.*
+import java.math.BigDecimal
 
 
 class ProductsListActivity : AppCompatActivity() {
@@ -55,7 +56,7 @@ class ProductsListActivity : AppCompatActivity() {
 
     private var currentUserId: Long = -1
     private var selectedProduct: Product? = null
-    private val wishlistedProducts = mutableSetOf<Long>()
+    private val wishlistedProducts = mutableSetOf<Int>()
     private var categoryProducts = listOf<Product>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,7 +109,7 @@ class ProductsListActivity : AppCompatActivity() {
         walletViewModel.userWallet.observe(this) { wallet ->
             wallet?.let {
                 currentWallet = it
-                // Update balance display with commas and two decimal points
+                // Update balance display with proper BigDecimal formatting
                 val formattedBalance = String.format("%,.2f", it.balance)
                 walletBalanceView.text = "₱$formattedBalance"
             }
@@ -143,28 +144,42 @@ class ProductsListActivity : AppCompatActivity() {
         setupSortButtons()
 
         // Load products for the selected category
-        CoroutineScope(Dispatchers.IO).launch {
-            val products = productViewModel.getProductsByCategory(categoryId)
+        productViewModel.fetchProducts(categoryId.toInt())
+        
+        // Observe products
+        productViewModel.products.observe(this) { products ->
             categoryProducts = products
-            withContext(Dispatchers.Main) {
-                // Update sort buttons with the loaded products
-                if (::sortButtonsHandler.isInitialized) {
-                    sortButtonsHandler.updateProducts(products)
-                }
-                updateAdapter(products)
+            // Update sort buttons with the loaded products
+            if (::sortButtonsHandler.isInitialized) {
+                sortButtonsHandler.updateProducts(products)
+            }
+            updateAdapter(products)
+        }
+
+        // Observe loading state
+        productViewModel.isLoading.observe(this) { isLoading ->
+            // You can show/hide a loading indicator here if you have one
+        }
+
+        // Observe error messages
+        productViewModel.errorMessage.observe(this) { errorMessage ->
+            errorMessage?.let {
+                Toast.makeText(this, it, Toast.LENGTH_LONG).show()
             }
         }
 
         // Load wishlist items for current user
-        wishlistViewModel.getUserWishlist(currentUserId)
-        wishlistViewModel.userWishlist.observe(this, Observer { wishlist ->
+        wishlistViewModel.loadUserWishlist()
+        
+        // Observe wishlist changes
+        wishlistViewModel.wishlistItems.observe(this, Observer { items ->
             wishlistedProducts.clear()
-            wishlist.forEach { item ->
-                wishlistedProducts.add(item.productid)
+            items.forEach { item ->
+                wishlistedProducts.add(item.productId)
             }
             // Get products for the current category and update adapter
             CoroutineScope(Dispatchers.IO).launch {
-                val products = productViewModel.getProductsByCategory(categoryId)
+                val products = productViewModel.getProductsByCategory(categoryId.toInt())
                 withContext(Dispatchers.Main) {
                     updateAdapter(products)
                 }
@@ -178,13 +193,11 @@ class ProductsListActivity : AppCompatActivity() {
                 if (wallet != null && wallet.balance >= product.price) {
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
-                            // No need to access database directly
-
                             // Create transaction
                             val transaction = Transaction(
                                 userid = currentUserId,
                                 type = product.name,
-                                amount = product.price,
+                                amount = product.price.toDouble(),
                                 timestamp = System.currentTimeMillis(),
                                 transactionType = TransactionType.PURCHASE
                             )
@@ -195,14 +208,15 @@ class ProductsListActivity : AppCompatActivity() {
 
                             // Get transaction ID
                             val transactionId = withContext(Dispatchers.IO) {
-                                // Use the transaction ID from the transaction object or generate a temporary one
                                 transaction.transaction_id ?: System.currentTimeMillis()
                             }
 
                             // Update wallet balance
-                            val newBalance = wallet.balance - product.price
+                            val newBalance = wallet.balance.subtract(product.price)
+                            // Note: This would normally use the proper API method in production
+                            // This is a temporary fix for compatibility
                             withContext(Dispatchers.IO) {
-                                walletViewModel.updateWalletBalance(wallet.id.toLong(), newBalance)
+                                walletViewModel.updateWalletBalance(wallet.id.toLong(), newBalance.toDouble())
                             }
 
                             // Get platform name
@@ -319,23 +333,18 @@ Best regards,
                 message = "are you sure you want to remove this item?",
                 onConfirm = {
                     // Remove from wishlist
+                    wishlistViewModel.removeFromWishlist(product.productid)
                     wishlistedProducts.remove(product.productid)
-                    wishlistViewModel.removeFromWishlist(currentUserId, product.productid)
-                    Toast.makeText(this, "Removed from wishlist", Toast.LENGTH_SHORT).show()
                     // Update the adapter to reflect changes
                     (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
+                    Toast.makeText(this, "Removed from wishlist", Toast.LENGTH_SHORT).show()
                 }
             )
         } else {
             // Add to wishlist
+            wishlistViewModel.addToWishlist(product.productid)
             wishlistedProducts.add(product.productid)
-            val wishlist = Wishlist(
-                userid = currentUserId,
-                productid = product.productid
-            )
-            wishlistViewModel.addToWishlist(wishlist)
             Toast.makeText(this, "Added to wishlist", Toast.LENGTH_SHORT).show()
-
             // Update the adapter to reflect changes
             (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
         }
@@ -381,14 +390,22 @@ Best regards,
         val btnSortAZ = findViewById<Button>(R.id.btn_sort_a_z)
 
         if (btnSortPopular != null && btnSortHighLow != null && btnSortLowHigh != null && btnSortAZ != null) {
+            // Create the sort buttons handler
             sortButtonsHandler = SortButtonsHandler(
                 btnSortPopular,
                 btnSortHighLow,
                 btnSortLowHigh,
                 btnSortAZ
             ) { products: List<Product> ->
+                // Apply filtered products to the adapter
                 updateAdapter(products)
             }
+
+            // Setup visual styling for buttons
+            btnSortPopular.setBackgroundResource(android.R.drawable.btn_default)
+            btnSortHighLow.setBackgroundResource(android.R.drawable.btn_default)
+            btnSortLowHigh.setBackgroundResource(android.R.drawable.btn_default)
+            btnSortAZ.setBackgroundResource(android.R.drawable.btn_default)
 
             // Initialize with current products if available
             if (categoryProducts.isNotEmpty()) {
@@ -463,7 +480,7 @@ Best regards,
     private fun showConfirmationPanel(product: Product) {
         confirmationPanel.visibility = View.VISIBLE
         findViewById<TextView>(R.id.tv_selected_product).text = product.name
-        findViewById<TextView>(R.id.tv_selected_price).text = "₱${product.price}"
+        findViewById<TextView>(R.id.tv_selected_price).text = productViewModel.formatPrice(product.price)
         findViewById<TextView>(R.id.tv_error_message).visibility = View.GONE
 
         val wallet = currentWallet
@@ -479,7 +496,6 @@ Best regards,
         }
 
         buyBtn.setOnClickListener {
-            // Place purchase logic here
             purchaseSelectedProduct()
         }
     }
@@ -506,7 +522,7 @@ Best regards,
                         val transaction = Transaction(
                             userid = currentUserId,
                             type = product.name,
-                            amount = product.price,
+                            amount = product.price.toDouble(),
                             timestamp = System.currentTimeMillis(),
                             transactionType = TransactionType.PURCHASE
                         )
@@ -517,9 +533,11 @@ Best regards,
                         }
 
                         // Update wallet balance
-                        val newBalance = wallet.balance - product.price
+                        val newBalance = wallet.balance.subtract(product.price)
+                        // Note: This would normally use the proper API method in production
+                        // This is a temporary fix for compatibility
                         withContext(Dispatchers.IO) {
-                            walletViewModel.updateWalletBalance(wallet.id.toLong(), newBalance)
+                            walletViewModel.updateWalletBalance(wallet.id.toLong(), newBalance.toDouble())
                         }
 
                         // Get platform name

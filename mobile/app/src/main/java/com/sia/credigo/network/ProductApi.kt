@@ -1,24 +1,45 @@
 package com.sia.credigo.network
 
 import com.sia.credigo.model.Product
-import com.sia.credigo.network.models.BaseResponse
 import retrofit2.Response
 import retrofit2.http.*
 
 interface ProductApi {
-    @GET("products")
-    suspend fun getAllProducts(): Response<BaseResponse<List<Product>>>
-    @GET("products/{id}")
-    suspend fun getProductById(@Path("id") id: Long): Response<BaseResponse<Product>>
+    /**
+     * Get all products with optional platform filter
+     * Matches: ProductController.getAllAvailableProducts
+     */
+    @GET("api/products")
+    suspend fun getAllProducts(@Query("platformId") platformId: Int? = null): Response<List<Product>>
 
-    @POST("products/admin")
-    suspend fun createProduct(@Body product: Product): Response<BaseResponse<Product>>
-    @PUT("products/admin/{id}")
+    /**
+     * Get product by ID
+     * Matches: ProductController.getProductById
+     */
+    @GET("api/products/{id}")
+    suspend fun getProductById(@Path("id") id: Int): Response<Product>
+
+    /**
+     * Create new product (admin only)
+     * Matches: ProductController.createProduct
+     */
+    @POST("api/products/admin")
+    suspend fun createProduct(@Body product: Product): Response<Product>
+
+    /**
+     * Update existing product (admin only)
+     * Matches: ProductController.updateProduct
+     */
+    @PUT("api/products/admin/{id}")
     suspend fun updateProduct(
-        @Path("id") id: Long,
+        @Path("id") id: Int,
         @Body product: Product
-    ): Response<BaseResponse<Product>>
+    ): Response<Product>
 
-    @DELETE("products/admin/{id}")
-    suspend fun deleteProduct(@Path("id") id: Long): Response<BaseResponse<Void>>
+    /**
+     * Delete product (admin only)
+     * Matches: ProductController.deleteProduct
+     */
+    @DELETE("api/products/admin/{id}")
+    suspend fun deleteProduct(@Path("id") id: Int): Response<Void>
 }

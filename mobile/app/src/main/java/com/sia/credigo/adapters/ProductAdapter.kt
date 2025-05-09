@@ -8,6 +8,9 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.sia.credigo.R
 import com.sia.credigo.model.Product
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
+import com.bumptech.glide.request.RequestOptions
 
 class ProductAdapter(
     private val products: List<Product>,
@@ -62,12 +65,26 @@ class ProductAdapter(
         holder.priceView.visibility = View.VISIBLE
         holder.priceView.text = "₱${product.price}"
 
-        // Show product image for COD Mobile, otherwise hide as before
-        if ((product.name?.contains("COD", ignoreCase = true) == true || product.name?.contains("Call of Duty", ignoreCase = true) == true) && holder.productImage != null) {
-            holder.productImage.visibility = View.VISIBLE
-            holder.productImage.setImageResource(R.drawable.img_cod)
+        // Load product image
+        holder.productImage.visibility = View.VISIBLE
+        
+        // Determine which image to load
+        val imageUrl = product.imageUrl
+        val context = holder.productImage.context
+        
+        if (!imageUrl.isNullOrEmpty()) {
+            // Use Glide to load the image from URL
+            Glide.with(context)
+                .load(imageUrl)
+                .transition(DrawableTransitionOptions.withCrossFade())
+                .apply(RequestOptions()
+                    .centerCrop()
+                    .placeholder(R.drawable.img_loading)
+                    .error(getDefaultImageForProduct(product)))
+                .into(holder.productImage)
         } else {
-            holder.productImage.visibility = View.GONE
+            // Load default image based on product type/name
+            holder.productImage.setImageResource(getDefaultImageForProduct(product))
         }
 
         // Update selection state
@@ -82,6 +99,28 @@ class ProductAdapter(
             if (isInWishlist(product)) R.drawable.ic_heart_green
             else R.drawable.ic_heart
         )
+    }
+
+    /**
+     * Get default image resource based on product name/type
+     */
+    private fun getDefaultImageForProduct(product: Product): Int {
+        return when {
+            product.name?.contains("COD", ignoreCase = true) == true || 
+            product.name?.contains("Call of Duty", ignoreCase = true) == true -> R.drawable.img_cod
+            
+            product.name?.contains("Mobile Legends", ignoreCase = true) == true || 
+            product.name?.contains("ML", ignoreCase = true) == true -> R.drawable.img_ml_bg
+            
+            product.name?.contains("Valorant", ignoreCase = true) == true || 
+            product.name?.contains("Valo", ignoreCase = true) == true -> R.drawable.img_valo_bg
+            
+            product.name?.contains("Genshin", ignoreCase = true) == true -> R.drawable.img_genshin_bg
+            
+            product.name?.contains("PUBG", ignoreCase = true) == true -> R.drawable.img_pubg_bg
+            
+            else -> R.drawable.img_notfound
+        }
     }
 
     override fun getItemCount() = products.size

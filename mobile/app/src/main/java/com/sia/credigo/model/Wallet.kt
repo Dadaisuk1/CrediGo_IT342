@@ -1,12 +1,15 @@
 package com.sia.credigo.model
 
 import java.math.BigDecimal
+import java.time.LocalDateTime
 
-// Matches backend Wallet entity and best practices for DTOs
-
+/**
+ * Data class representing a user's wallet.
+ * Matches the backend Wallet entity structure.
+ */
 data class Wallet(
     val id: Int = 0,
     val userId: Int? = null, // Use Int? for flexibility, or User if backend returns full user object
-    val balance: Double = 0.0,
-    val lastUpdatedAt: String? = null, // ISO string, nullable for flexibility
+    val balance: BigDecimal = BigDecimal.ZERO,
+    val lastUpdatedAt: String? = null, // ISO string for LocalDateTime
 )

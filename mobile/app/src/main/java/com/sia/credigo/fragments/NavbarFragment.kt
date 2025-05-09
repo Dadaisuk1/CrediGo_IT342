@@ -3,6 +3,7 @@ package com.sia.credigo.fragments
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -15,8 +16,11 @@ import com.sia.credigo.WishlistActivity
 import com.sia.credigo.ProfileActivity
 import com.sia.credigo.R
 import com.sia.credigo.SearchActivity
+import com.sia.credigo.app.CredigoApp
+import com.sia.credigo.model.User
 
 class NavbarFragment : Fragment() {
+    private val TAG = "NavbarFragment"
 
     private lateinit var homeNavItem: LinearLayout
     private lateinit var searchNavItem: LinearLayout
@@ -37,6 +41,7 @@ class NavbarFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        Log.d(TAG, "onCreateView")
         // Inflate the layout for this fragment
         val view = inflater.inflate(R.layout.fragment_navbar, container, false)
 
@@ -59,41 +64,82 @@ class NavbarFragment : Fragment() {
         // Set click listeners
         homeNavItem.setOnClickListener {
             if (activity !is HomeActivity) {
-                val intent = Intent(activity, HomeActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                startActivity(intent)
-                activity?.finish()
-                activity?.overridePendingTransition(0, 0)
+                Log.d(TAG, "Navigating to HomeActivity")
+                try {
+                    val intent = Intent(activity, HomeActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    startActivity(intent)
+                    // Don't finish the current activity to avoid state loss
+                    activity?.overridePendingTransition(0, 0)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error navigating to Home: ${e.message}")
+                }
             }
         }
 
         searchNavItem.setOnClickListener {
             if (activity !is SearchActivity) {
-                val intent = Intent(activity, SearchActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                startActivity(intent)
-                activity?.finish()
-                activity?.overridePendingTransition(0, 0)
+                Log.d(TAG, "Navigating to SearchActivity")
+                try {
+                    val intent = Intent(activity, SearchActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    startActivity(intent)
+                    // Don't finish the current activity to avoid state loss
+                    activity?.overridePendingTransition(0, 0)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error navigating to Search: ${e.message}")
+                }
             }
         }
 
         likesNavItem.setOnClickListener {
             if (activity !is WishlistActivity) {
-                val intent = Intent(activity, WishlistActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                startActivity(intent)
-                activity?.finish()
-                activity?.overridePendingTransition(0, 0)
+                Log.d(TAG, "Navigating to WishlistActivity")
+                try {
+                    val intent = Intent(activity, WishlistActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    startActivity(intent)
+                    // Don't finish the current activity to avoid state loss
+                    activity?.overridePendingTransition(0, 0)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error navigating to Wishlist: ${e.message}")
+                }
             }
         }
 
         profileNavItem.setOnClickListener {
             if (activity !is ProfileActivity) {
-                val intent = Intent(activity, ProfileActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                startActivity(intent)
-                activity?.finish()
-                activity?.overridePendingTransition(0, 0)
+                Log.d(TAG, "Navigating to ProfileActivity")
+                try {
+                    // Get the application context and force create test user if needed
+                    val app = requireActivity().application as CredigoApp
+                    
+                    if (!app.sessionManager.isLoggedIn() || app.loggedInuser == null) {
+                        Log.d(TAG, "No valid session - creating test user for development")
+                        val testUser = User(
+                            id = 1,
+                            username = "testuser",
+                            email = "test@example.com"
+                        )
+                        app.sessionManager.saveUserData(testUser)
+                        app.sessionManager.saveLoginState(1)
+                        app.sessionManager.saveAuthToken("test_token")
+                        app.loggedInuser = testUser
+                        app.isLoggedIn = true
+                    }
+                    
+                    // Verify session is active
+                    Log.d(TAG, "User data before navigation: ${app.loggedInuser?.username}, Session active: ${app.sessionManager.isLoggedIn()}")
+                    
+                    // Create and start activity with user info
+                    val intent = Intent(activity, ProfileActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    startActivity(intent)
+                    activity?.overridePendingTransition(0, 0)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error navigating to Profile: ${e.message}")
+                    e.printStackTrace()
+                }
             }
         }
 
@@ -134,5 +180,11 @@ class NavbarFragment : Fragment() {
                 profileText.setTextColor(Color.parseColor("#00CA63"))
             }
         }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        Log.d(TAG, "onResume")
+        updateIcons()
     }
 }

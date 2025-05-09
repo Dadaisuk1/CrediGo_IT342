@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.sia.credigo.adapters.GameCategoryAdapter
 import com.sia.credigo.app.CredigoApp
 import com.sia.credigo.MailsActivity
@@ -18,16 +19,19 @@ import com.sia.credigo.model.*
 import com.sia.credigo.model.Wallet
 
 import android.view.View
+import android.widget.Toast
 
 class HomeActivity : AppCompatActivity() {
     companion object {
         private const val MAIL_LIST_REQUEST_CODE = 100
+        private const val TAG = "HomeActivity"
     }
     private var mailObserver: androidx.lifecycle.Observer<Int>? = null
     private lateinit var viewModel: PlatformViewModel
     private lateinit var mailViewModel: MailViewModel
     private lateinit var walletViewModel: WalletViewModel
     private lateinit var recyclerView: RecyclerView
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var walletBalanceView: TextView
     private lateinit var walletIcon: ImageView
     private lateinit var mailIcon: ImageView
@@ -39,10 +43,12 @@ class HomeActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_home)
 
+        Log.d(TAG, "onCreate: Starting HomeActivity initialization")
+
         // Get user ID from CredigoApp
         val app = application as CredigoApp
-
         currentUserId = app.loggedInuser?.userid ?: -1
+        Log.d(TAG, "Current user ID: $currentUserId")
 
         // Initialize ViewModels
         viewModel = ViewModelProvider(this).get(PlatformViewModel::class.java)
@@ -51,18 +57,37 @@ class HomeActivity : AppCompatActivity() {
 
         // Initialize views
         recyclerView = findViewById(R.id.rv_game_categories)
+        swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout)
         walletBalanceView = findViewById(R.id.tv_balance)
         walletIcon = findViewById(R.id.iv_wallet)
         mailIcon = findViewById(R.id.mail_icon)
 
+        // Setup RecyclerView
+        recyclerView.apply {
+            layoutManager = GridLayoutManager(this@HomeActivity, 2)
+            setHasFixedSize(true)
+        }
+
+        // Setup refresh capability
+        findViewById<SwipeRefreshLayout>(R.id.swipe_refresh_layout)?.setOnRefreshListener {
+            Log.d(TAG, "Refresh triggered, fetching platforms")
+            viewModel.fetchPlatforms()
+        }
+
         // Load wallet data for current user
         if (currentUserId > 0) {
+            Log.d(TAG, "Loading wallet for user ID: $currentUserId")
             walletViewModel.getWalletByUserId(currentUserId.toLong())
         }
+
+        // Fetch platforms from backend
+        Log.d(TAG, "Fetching platforms from backend")
+        viewModel.fetchPlatforms()
 
         // Observe wallet data for live updates
         walletViewModel.userWallet.observe(this) { wallet ->
             wallet?.let {
+                Log.d(TAG, "Wallet updated: balance = ${it.balance}")
                 currentWallet = it
                 // Update balance display with commas and two decimal points
                 val formattedBalance = String.format("%,.2f", it.balance)
@@ -93,22 +118,50 @@ class HomeActivity : AppCompatActivity() {
             updateMailIcon(mailViewModel.unreadMailCount.value ?: 0, hasPurchaseMail)
         }
 
-        // Set up RecyclerView
-        recyclerView.layoutManager = GridLayoutManager(this, 2) // 2 columns
+        // Observe loading state
+        viewModel.isLoading.observe(this) { isLoading ->
+            Log.d(TAG, "Loading state changed: $isLoading")
+            findViewById<SwipeRefreshLayout>(R.id.swipe_refresh_layout)?.isRefreshing = isLoading
+            findViewById<View>(R.id.progress_bar)?.visibility = if (isLoading) View.VISIBLE else View.GONE
+        }
+
+        // Observe error messages
+        viewModel.errorMessage.observe(this) { message ->
+            message?.let {
+                Log.e(TAG, "Error from ViewModel: $it")
+                // Show error message to user
+                Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+            }
+        }
 
         // Observe platforms and set up adapter
         viewModel.allPlatforms.observe(this, Observer { platforms ->
             if (!platforms.isNullOrEmpty()) {
-                Log.d("HomeActivity", "Platforms loaded: ${platforms.size}")
+                Log.d(TAG, "Platforms loaded: ${platforms.size}")
                 platforms.forEach { platform ->
-                    Log.d("HomeActivity", "Platform: ${platform.name}, Logo: ${platform.logoUrl}")
-                    // Optionally check for logo resource if needed
+                    Log.d(TAG, "Platform: id=${platform.id}, name=${platform.name}, Logo: ${platform.logoUrl}")
                 }
-                recyclerView.adapter = GameCategoryAdapter(platforms)
+                
+                try {
+                    // Create and set adapter
+                    val adapter = GameCategoryAdapter(platforms)
+                    recyclerView.adapter = adapter
+                    recyclerView.visibility = View.VISIBLE
+                    findViewById<View>(R.id.empty_state_view)?.visibility = View.GONE
+                    
+                    Log.d(TAG, "Adapter set with ${platforms.size} platforms")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error setting up adapter: ${e.message}", e)
+                    Toast.makeText(this, "Error displaying platforms", Toast.LENGTH_SHORT).show()
+                }
             } else {
-                Log.e("HomeActivity", "No platforms found")
+                Log.e(TAG, "No platforms found or empty platform list")
+                recyclerView.visibility = View.GONE
+                findViewById<View>(R.id.empty_state_view)?.visibility = View.VISIBLE
             }
         })
+        
+        Log.d(TAG, "HomeActivity onCreate completed")
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -131,6 +184,8 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        Log.d(TAG, "onResume called")
+        
         // Remove and re-add observer to force refresh
         mailObserver?.let { observer ->
             mailViewModel.unreadMailCount.removeObserver(observer)
@@ -142,5 +197,8 @@ class HomeActivity : AppCompatActivity() {
         mailViewModel.hasPurchaseMail.observe(this) { hasPurchaseMail ->
             updateMailIcon(mailViewModel.unreadMailCount.value ?: 0, hasPurchaseMail)
         }
+        
+        // Refresh platforms in case data changed
+        viewModel.fetchPlatforms()
     }
 }

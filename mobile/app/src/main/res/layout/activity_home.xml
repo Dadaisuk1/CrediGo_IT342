@@ -66,15 +66,63 @@
             app:layout_constraintBottom_toBottomOf="@id/text_title"
             app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- RecyclerView for game categories -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_game_categories"
+    <!-- Progress Bar for loading -->
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="@id/rv_game_categories"
+        app:layout_constraintBottom_toBottomOf="@id/rv_game_categories"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Empty state view -->
+    <LinearLayout
+        android:id="@+id/empty_state_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="@id/rv_game_categories"
+        app:layout_constraintBottom_toBottomOf="@id/rv_game_categories"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/img_notfound"
+            android:contentDescription="No platforms available" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="No games available"
+            android:textSize="18sp"
+            android:textColor="@color/black"
+            android:layout_marginTop="16dp" />
+
+    </LinearLayout>
+
+    <!-- SwipeRefreshLayout for pull to refresh -->
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipe_refresh_layout"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:padding="8dp"
-        android:clipToPadding="false"
         app:layout_constraintTop_toBottomOf="@id/text_title"
-        app:layout_constraintBottom_toTopOf="@id/navbar_container"/>
+        app:layout_constraintBottom_toTopOf="@id/navbar_container">
+        
+        <!-- RecyclerView for game categories -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_game_categories"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            android:clipToPadding="false" />
+            
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- Navbar Fragment -->
     <androidx.fragment.app.FragmentContainerView
