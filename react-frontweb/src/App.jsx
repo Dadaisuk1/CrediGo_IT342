@@ -1,5 +1,6 @@
 // src/App.jsx
-import React, { Suspense, lazy } from 'react';
+import { Toaster } from "@/components/ui/toaster";
+import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { isAdmin } from './utils/auth';
@@ -34,47 +35,60 @@ const AdminStats = lazy(() => import('./pages/AdminStats'));
 const AdminProducts = lazy(() => import('./pages/AdminProducts'));
 const AdminPayments = lazy(() => import('./pages/AdminPayments'));
 
+// Custom loading component that matches the app's blue theme
+const Loading = () => (
+  <div className="fixed inset-0 flex items-center justify-center bg-credigo-dark">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-credigo-button mb-4"></div>
+      <p className="text-credigo-light text-lg font-medium">Loading...</p>
+    </div>
+  </div>
+);
+
 function App() {
   const { isAuthenticated, token } = useAuth();
   const adminOnly = isAuthenticated && isAdmin(token);
 
   return (
-    <Suspense fallback={<div className="text-center mt-20 text-lg text-gray-600">Loading page...</div>}>
-      <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={!isAuthenticated ? <LandingPage /> : <Navigate to="/home" replace />} />
-      <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/home" replace />} />
-      <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/home" replace />} />
-      <Route path="/about" element={<AboutPage />} />
-      <Route path="/pay" element={<PaymentPage />} />
-      <Route path="/not-authorized" element={<NotAuthorized />} />
+    <>
+      <Suspense fallback={<Loading />}>
+        <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={!isAuthenticated ? <LandingPage /> : <Navigate to="/home" replace />} />
+        <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/home" replace />} />
+        <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/home" replace />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/pay" element={<PaymentPage />} />
+        <Route path="/not-authorized" element={<NotAuthorized />} />
 
-      {/* Protected User Routes */}
-      <Route path="/home" element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/" replace />}>
-        <Route index element={<HomePage />} />
-        <Route path="products" element={<ProductsPage />} />
-        <Route path="wallet" element={<WalletPage />} />
-        <Route path="history" element={<HistoryPage />} />
-        <Route path="wishlist" element={<WishlistPage />} />
-        <Route path="about" element={<AboutPage />} />
-      </Route>
+        {/* Protected User Routes */}
+        <Route path="/home" element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/" replace />}>
+          <Route index element={<HomePage />} />
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="wallet" element={<WalletPage />} />
+          <Route path="history" element={<HistoryPage />} />
+          <Route path="wishlist" element={<WishlistPage />} />
+          <Route path="about" element={<AboutPage />} />
+        </Route>
 
-      {/* Admin Routes */}
-      <Route path="/admin" element={adminOnly ? <AdminLayout /> : <NotAuthorized />}>
-        <Route index element={<AdminStats />} />
-        <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="users" element={<AdminUsers />} />
-        <Route path="transactions" element={<AdminTransactions />} />
-        <Route path="products" element={<AdminProducts />} />
-        <Route path="payments" element={<AdminPayments />} />
-        <Route path="kyc" element={<AdminKYC />} />
-        <Route path="wallet" element={<AdminWallet />} />
-      </Route>
+        {/* Admin Routes */}
+        <Route path="/admin" element={adminOnly ? <AdminLayout /> : <NotAuthorized />}>
+          <Route index element={<AdminStats />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="transactions" element={<AdminTransactions />} />
+          <Route path="products" element={<AdminProducts />} />
+          <Route path="payments" element={<AdminPayments />} />
+          <Route path="kyc" element={<AdminKYC />} />
+          <Route path="wallet" element={<AdminWallet />} />
+        </Route>
 
-      {/* Catch-all */}
-      <Route path="*" element={<Page404 />} />
-      </Routes>
-    </Suspense>
+        {/* Catch-all */}
+        <Route path="*" element={<Page404 />} />
+        </Routes>
+      </Suspense>
+      <Toaster />
+    </>
   );
 }
 

@@ -1,11 +1,22 @@
+import { useToast } from '@/hooks/use-toast';
 import jwtDecode from 'jwt-decode';
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 function HomePage() {
   const { user, token } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  // Show welcome toast when user lands on home page
+  useEffect(() => {
+    // Show a welcome toast when the component mounts
+    toast({
+      title: `Welcome back, ${user?.username || 'User'}!`,
+      description: "You've successfully logged in to CrediGo.",
+    });
+  }, [toast, user?.username]);
 
   // Demo data - in a real app, this would come from an API call
   const userStats = {
@@ -19,7 +30,7 @@ function HomePage() {
   // Quick links for the user
   const quickLinks = [
     { name: 'Top Up', icon: 'wallet', path: '/home/wallet', color: 'bg-green-100 text-green-600' },
-    { name: 'Products', icon: 'shopping-bag', path: '/home/products', color: 'bg-blue-100 text-blue-600' },
+    { name: 'Products', icon: 'shopping-bag', path: '/home/products', color:  'bg-blue-100 text-blue-600' },
     { name: 'History', icon: 'clock', path: '/home/history', color: 'bg-purple-100 text-purple-600' },
     { name: 'Wishlist', icon: 'heart', path: '/home/wishlist', color: 'bg-pink-100 text-pink-600' },
   ];

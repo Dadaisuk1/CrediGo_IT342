@@ -1,6 +1,12 @@
 // src/components/LoginPage.jsx
-import { Eye, EyeClosed } from 'lucide-react';
-import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import {
+  FormLabel
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import credigoLogo from '../assets/images/credigo_icon.svg';
 import AlertModal from '../components/AlertModal';
@@ -71,120 +77,137 @@ function LoginPage() {
         type={alertModal.type}
         onClose={() => setAlertModal({ ...alertModal, open: false })}
       />
-      {error && (
-        <div className="text-red-500 text-sm mb-2 text-center">{typeof error === 'string' ? error : JSON.stringify(error)}</div>
-      )}
+
       <div className="flex items-center justify-center min-h-screen px-4 py-12 font-sans bg-credigo-dark text-credigo-light">
-        <div className="w-full max-w-md p-8 space-y-6 bg-credigo-input-bg rounded-2xl shadow-xl border border-gray-700">
-          {/* Breadcrumbs */}
-          <nav className="text-sm mb-4 text-gray-400">
-            <Link to="/" className="hover:text-credigo-light">Home</Link>
-            <span className="mx-2">/</span>
-            <span className="cursor-default">Sign in</span>
-          </nav>
+        <Card className="w-full max-w-md bg-credigo-input-bg border-gray-700">
+          <CardHeader>
+            {/* Breadcrumbs */}
+            <nav className="text-sm mb-4 text-gray-400">
+              <Link to="/" className="hover:text-credigo-light">Home</Link>
+              <span className="mx-2">/</span>
+              <span className="cursor-default">Sign in</span>
+            </nav>
 
-        {/* Header */}
-        <div className="text-center">
-          <img className="w-auto h-16 mx-auto mb-6" src={credigoLogo} alt="CrediGo Logo" />
-          <h2 className="text-3xl font-bold tracking-tight text-credigo-light">Sign in to CrediGo</h2>
-        </div>
-
-        {/* Form */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {/* Login Error */}
-          {error && (
-            <div className="p-3 text-sm text-red-100 bg-red-500/30 rounded-lg border border-red-500/50" role="alert">
-              <span className="font-medium">Login Error:</span> {typeof error === 'string' ? error : 'Invalid credentials or server error.'}
+            {/* Header */}
+            <div className="text-center">
+              <img className="w-auto h-16 mx-auto mb-6" src={credigoLogo} alt="CrediGo Logo" />
+              <h2 className="text-3xl font-bold tracking-tight text-credigo-light">Sign in to CrediGo</h2>
             </div>
-          )}
+          </CardHeader>
 
-          {/* Username or Email Input */}
-          <div className="space-y-2">
-            <label htmlFor="usernameOrEmail" className="block text-sm font-medium text-credigo-light/80">Username or Email</label>
-            <input
-              id="usernameOrEmail" name="usernameOrEmail" type="text"
-              autoComplete="username" required value={usernameOrEmail}
-              onChange={(e) => setUsernameOrEmail(e.target.value)}
-              className="block w-full px-4 py-3 text-credigo-light placeholder-gray-400 bg-credigo-dark border border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-credigo-button focus:border-transparent sm:text-sm"
-              placeholder="you@example.com or username"
-            />
-          </div>
+          <CardContent>
+            {/* Form */}
+            <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+              {/* Login Error */}
+              {error && (
+                <div className="p-3 text-sm text-red-100 bg-red-500/30 rounded-lg border border-red-500/50" role="alert">
+                  <span className="font-medium">Login Error:</span> {typeof error === 'string' ? error : 'Invalid credentials or server error.'}
+                </div>
+              )}
 
-          {/* Password Input & Toggle Button */}
-          <div className="space-y-2">
-            <label htmlFor="password" className="block text-sm font-medium text-credigo-light/80">Password</label>
-            {/* Relative container for positioning the button */}
-            <div className="relative">
-              <input
-                id="password" name="password"
-                type={showPassword ? 'text' : 'password'} // Toggle input type
-                autoComplete="current-password" required value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                // Add padding-right to make space for the button
-                className="block w-full px-4 py-3 pr-12 text-credigo-light placeholder-gray-400 bg-credigo-dark border border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-credigo-button focus:border-transparent sm:text-sm"
-                placeholder="Enter your password"
-              />
-              {/* Position the button inside the input field */}
-              <button
-                type="button" // Prevent form submission
-                onClick={() => setShowPassword(!showPassword)} // Toggle state on click
-                className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-credigo-light focus:outline-none"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? (
-                  <EyeClosed className="w-6 mr-2 h-5" /> // EyeOff icon when shown
-                ) : (
-                  <Eye className="w-6 mr-2 h-5" /> // Eye icon when hidden
-                )}
-              </button>
+              {/* Username or Email Input */}
+              <div className="space-y-2">
+                <FormLabel htmlFor="usernameOrEmail" className="text-credigo-light/80">
+                  Username or Email
+                </FormLabel>
+                <Input
+                  id="usernameOrEmail"
+                  name="usernameOrEmail"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={usernameOrEmail}
+                  onChange={(e) => setUsernameOrEmail(e.target.value)}
+                  className="bg-credigo-dark border-gray-600 text-credigo-light placeholder-gray-400 focus:ring-credigo-button"
+                  placeholder="you@example.com or username"
+                />
+              </div>
+
+              {/* Password Input & Toggle Button */}
+              <div className="space-y-2">
+                <FormLabel htmlFor="password" className="text-credigo-light/80">
+                  Password
+                </FormLabel>
+                {/* Relative container for positioning the button */}
+                <div className="relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pr-12 bg-credigo-dark border-gray-600 text-credigo-light placeholder-gray-400 focus:ring-credigo-button"
+                    placeholder="Enter your password"
+                  />
+                  {/* Position the button inside the input field */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-credigo-light focus:outline-none"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+                {/* Forgot Password Link */}
+                <div className="text-right text-sm mt-2">
+                  <a href="/forgot-password" className="font-medium text-credigo-button hover:text-opacity-80">
+                    Forgot password?
+                  </a>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-4">
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-credigo-button text-credigo-dark hover:bg-opacity-90"
+                >
+                  {loading ? 'Signing in...' : 'Sign in'}
+                </Button>
+              </div>
+            </form>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-gray-600" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-credigo-input-bg text-gray-400">Or continue with</span>
+              </div>
             </div>
-            {/* Forgot Password Link */}
-            <div className="text-right text-sm mt-2">
-              <a href="/forgot-password" className="font-medium text-credigo-button hover:text-opacity-80">
-                Forgot password?
-              </a>
-            </div>
-          </div>
 
-          {/* Submit Button */}
-          <div className="pt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full flex justify-center px-4 py-3 text-sm font-bold text-credigo-dark bg-credigo-button border border-transparent rounded-lg shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-credigo-dark focus:ring-credigo-button transition duration-150 ease-in-out ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
+            {/* Google Sign-In Button */}
+            <Button
+              type="button"
+              onClick={handleGoogleSignIn}
+              variant="outline"
+              className="w-full border-gray-600 bg-credigo-dark text-credigo-light hover:bg-gray-700"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </div>
-        </form>
+              <GoogleIcon />
+              <span className="ml-3">Sign in with Google</span>
+            </Button>
+          </CardContent>
 
-        {/* Divider */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-gray-600" /></div>
-          <div className="relative flex justify-center text-sm"><span className="px-2 bg-credigo-input-bg text-gray-400">Or continue with</span></div>
-        </div>
-
-        {/* Google Sign-In Button */}
-        <div>
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            className="w-full inline-flex justify-center items-center py-3 px-4 border border-gray-600 rounded-lg shadow-sm bg-credigo-dark text-sm font-medium text-credigo-light hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-credigo-dark focus:ring-credigo-button"
-          >
-            <GoogleIcon />
-            <span className="ml-3">Sign in with Google</span>
-          </button>
-        </div>
-
-        {/* Link to Registration */}
-        <p className="mt-8 text-sm text-center text-gray-400">
-          Don't have an account yet?{' '}
-          <Link to="/register" className="font-medium text-credigo-button hover:text-opacity-80">
-            Register now
-          </Link>
-        </p>
+          <CardFooter>
+            {/* Link to Registration */}
+            <p className="w-full text-sm text-center text-gray-400">
+              Don't have an account yet?{' '}
+              <Link to="/register" className="font-medium text-credigo-button hover:text-opacity-80">
+                Register now
+              </Link>
+            </p>
+          </CardFooter>
+        </Card>
       </div>
-    </div>
     </>
   );
 }
