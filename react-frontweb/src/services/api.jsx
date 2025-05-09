@@ -14,12 +14,15 @@ const apiClient = axios.create({
 // Request interceptor to add JWT token to Authorization header
 apiClient.interceptors.request.use(
   (config) => {
+    // Skip token check for authentication endpoints
+    const isAuthEndpoint = config.url.includes('/api/auth/');
+
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
-    } else {
-      console.warn('No token found. Redirecting to login.');
-      // Optional: Redirect to login if token is missing
+    } else if (!isAuthEndpoint) {
+      console.warn('No token found for protected route.');
+      // Only redirect for non-auth endpoints
       window.location.href = '/login';
     }
     return config;
@@ -85,12 +88,25 @@ export const getWallet = () => {
 };
 
 /**
- * Creates a Stripe Payment Intent for topping up the wallet.
- * @param {object} topUpData - { amount: 100.00 }
- * @returns {Promise<axios.Response>} The Axios response object containing the clientSecret.
+ * Creates a PayMongo Payment Intent for topping up the wallet.
+ * @param {object} topUpData - Payment data object containing:
+ *   - amount: 100.00 (required)
+ *   - paymentType: 'card', 'gcash', or 'paymaya' (required)
+ *   - card: { number, exp_month, exp_year, cvc, name } (for card payments)
+ *   - mobileNumber: '09XXXXXXXXX' (for gcash/paymaya payments)
+ * @returns {Promise<axios.Response>} The Axios response object containing the payment details.
  */
 export const createWalletTopUpIntent = (topUpData) => {
-  return apiClient.post('/api/wallet/create-payment-intent', topUpData);
+  return apiClient.post('/api/payments/create-payment-intent', topUpData);
+};
+
+/**
+ * Checks the status of a payment intent and automatically credits wallet if successful.
+ * @param {string} paymentIntentId - The ID of the payment intent to check.
+ * @returns {Promise<axios.Response>} The Axios response object with payment status.
+ */
+export const checkPaymentStatus = (paymentIntentId) => {
+  return apiClient.get(`/api/payments/status/${paymentIntentId}`);
 };
 
 // --- Product/Platform API Calls ---
@@ -246,6 +262,23 @@ export const rejectKYCRequest = (id, comment = '') => {
  */
 export const deleteKYCRequest = (id) => {
   return apiClient.delete(`/api/admin/kyc/${id}`);
+};
+
+/**
+ * Manually confirms a payment for testing/demo purposes.
+ * @param {object} paymentData - { paymentIntentId: '...', amount: 100.00 }
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const confirmTestPayment = (paymentData) => {
+  return apiClient.post('/api/payments/test-confirm-payment', paymentData);
+};
+
+/**
+ * Fetches all pending payments that are awaiting confirmation.
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const getPendingPayments = () => {
+  return apiClient.get('/api/payments/pending');
 };
 
 export default apiClient;

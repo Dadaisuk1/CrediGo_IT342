@@ -1,7 +1,7 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { FaHome, FaUsers, FaBoxOpen, FaExchangeAlt, FaSignOutAlt } from 'react-icons/fa';
+import { FaBoxOpen, FaCreditCard, FaExchangeAlt, FaHome, FaSignOutAlt, FaUsers } from 'react-icons/fa';
 import { IoMdSettings } from 'react-icons/io';
+import { useLocation, useNavigate } from 'react-router-dom';
 import credigoLogo from '../assets/images/credigo_icon.svg';
 import ConfirmModal from './ConfirmModal';
 
@@ -25,6 +25,7 @@ const AdminSidebar = ({ sidebarOpen }) => {
     { id: 'users', label: 'User Management', icon: <FaUsers size={20} />, path: '/admin/users' },
     { id: 'products', label: 'Product Management', icon: <FaBoxOpen size={20} />, path: '/admin/products' },
     { id: 'transactions', label: 'Transactions', icon: <FaExchangeAlt size={20} />, path: '/admin/transactions' },
+    { id: 'payments', label: 'Payment Testing', icon: <FaCreditCard size={20} />, path: '/admin/payments' },
     { id: 'settings', label: 'Settings', icon: <IoMdSettings size={20} />, path: '/admin/settings' },
   ];
 

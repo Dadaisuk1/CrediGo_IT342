@@ -1,10 +1,10 @@
 // src/components/LoginPage.jsx
+import { Eye, EyeClosed } from 'lucide-react';
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import credigoLogo from '../assets/images/credigo_icon.svg';
 import AlertModal from '../components/AlertModal';
 import { useAuth } from '../context/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeClosed } from 'lucide-react';
 
 // Google Icon component (keep as is)
 const GoogleIcon = () => (
@@ -29,19 +29,30 @@ function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-  
-    const success = await login({ usernameOrEmail, password });
-  
-    if (success) {
-      setAlertModal({ open: true, title: 'Success', message: 'Login Successful!', type: 'success' });
-      setTimeout(() => {
-        navigate('/');
-      }, 1000);
-    } else {
+
+    try {
+      const success = await login({ usernameOrEmail, password });
+
+      if (success) {
+        setAlertModal({ open: true, title: 'Success', message: 'Login Successful!', type: 'success' });
+        // Wait briefly for the token to be stored and context to update
+        setTimeout(() => {
+          navigate('/');
+        }, 1000);
+      } else {
+        setAlertModal({
+          open: true,
+          title: 'Login Failed',
+          message: 'Invalid credentials or server error. Please try again.',
+          type: 'error',
+        });
+      }
+    } catch (err) {
+      console.error('Login error:', err);
       setAlertModal({
         open: true,
-        title: 'Login Failed',
-        message: 'Invalid credentials or server error. Please try again.',
+        title: 'Login Error',
+        message: 'An unexpected error occurred. Please try again.',
         type: 'error',
       });
     }
