@@ -158,23 +158,14 @@ class LoginActivity : AppCompatActivity() {
                 try {
                     Log.d(TAG, "Attempting to login with email: $email")
                     
-                    // Try the production URL if connected to Wi-Fi or mobile data
+                    // Try to login with a timeout
                     val response = try {
-                        withTimeout(15000) { // 15 seconds timeout
+                        withTimeout(10000) { // 10 seconds timeout
                             authApi.login(LoginRequest(email, password))
                         }
                     } catch (e: TimeoutCancellationException) {
-                        Log.e(TAG, "Login timeout, trying alternate server", e)
-                        // If timeout, try alternate server
-                        try {
-                            withTimeout(15000) {
-                                RetrofitClient.getAlternateRetrofit().create(AuthApi::class.java)
-                                    .login(LoginRequest(email, password))
-                            }
-                        } catch (e2: Exception) {
-                            Log.e(TAG, "Alternate server also failed", e2)
-                            throw e // Throw original exception if alternate also fails
-                        }
+                        Log.e(TAG, "Login request timed out", e)
+                        throw e // Re-throw to be caught by the outer catch block
                     }
 
                     if (!response.isSuccessful) {
@@ -212,14 +203,14 @@ class LoginActivity : AppCompatActivity() {
                             // Save login data including token
                             sessionManager.saveLoginData(loginResponse)
                             
-                            // Save the user object to session for immediate persistence
-                            sessionManager.saveUserData(user)
+                            // Initialize authenticated Retrofit with the token
+                            RetrofitClient.initializeAuthenticatedRetrofit(sessionManager)
                             
-                            // Set the app's logged in user references
-                            isLoggedIn = true
-                            loggedInuser = user
+                            // Use the proper method to set the logged in user
+                            // This will save the user to session and initialize WalletManager
+                            setLoggedInUser(user)
                             
-                            Log.d(TAG, "User data saved to session: ${user.username}, ID: ${user.id}")
+                            Log.d(TAG, "User data saved, wallet initialized: ${user.username}, ID: ${user.id}")
                         }
 
                         // Navigate to home screen

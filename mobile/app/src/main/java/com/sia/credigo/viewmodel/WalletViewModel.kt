@@ -16,6 +16,7 @@ import java.math.BigDecimal
  * Handles authenticated user's wallet operations.
  */
 class WalletViewModel : ViewModel() {
+    private val TAG = "WalletViewModel"
     private val walletService = RetrofitClient.walletService
 
     private val _userWallet = MutableLiveData<Wallet?>()
@@ -31,30 +32,32 @@ class WalletViewModel : ViewModel() {
     val paymentIntentData: LiveData<Map<String, String>?> = _paymentIntentData
 
     /**
-     * Fetches the authenticated user's wallet
+     * Fetches the authenticated user's wallet from the backend
+     * Matches: WalletController.getCurrentUserWallet()
      */
     fun fetchMyWallet() {
         _isLoading.value = true
         viewModelScope.launch {
             try {
-                Log.d("WalletViewModel", "Fetching authenticated user wallet")
+                Log.d(TAG, "Fetching authenticated user wallet")
                 val response = walletService.getMyWallet()
                 if (response.isSuccessful) {
-                    _userWallet.value = response.body()
-                    Log.d("WalletViewModel", "Successfully fetched wallet: ${response.body()?.balance}")
+                    val wallet = response.body()
+                    _userWallet.value = wallet
+                    Log.d(TAG, "Successfully fetched wallet: ${wallet?.balance}")
                 } else {
-                    _errorMessage.value = "Error: ${response.code()} - ${response.message()}"
-                    Log.e("WalletViewModel", "Failed to fetch wallet: ${response.code()} - ${response.message()}")
-                    
-                    // If wallet fetch fails, create a fallback wallet
-                    createFallbackWallet()
+                    val errorCode = response.code()
+                    val errorMessage = when (errorCode) {
+                        401, 403 -> "Authentication error (code $errorCode). Please log in again."
+                        404 -> "Wallet not found. Please contact support."
+                        else -> "Error: ${response.code()} - ${response.message()}"
+                    }
+                    _errorMessage.value = errorMessage
+                    Log.e(TAG, "Failed to fetch wallet: $errorCode - ${response.message()}")
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Network error: ${e.message}"
-                Log.e("WalletViewModel", "Exception fetching wallet: ${e.message}", e)
-                
-                // If wallet fetch fails with an exception, create a fallback wallet
-                createFallbackWallet()
+                Log.e(TAG, "Exception fetching wallet: ${e.message}", e)
             } finally {
                 _isLoading.value = false
             }
@@ -64,22 +67,33 @@ class WalletViewModel : ViewModel() {
     /**
      * COMPATIBILITY METHOD: For existing activities that use this method.
      * In new code, prefer fetchMyWallet() instead.
+     * 
+     * Note: This doesn't match backend API which doesn't allow fetching by userId directly,
+     * but is included for backward compatibility with existing code.
      */
     fun getWalletByUserId(userId: Long) {
+        Log.d(TAG, "getWalletByUserId($userId) called - redirecting to fetchMyWallet()")
         fetchMyWallet() // Just fetch the authenticated user's wallet
     }
 
     /**
      * COMPATIBILITY METHOD: For existing code that updates wallet balance.
-     * In a real implementation, this should be done through proper API calls.
+     * 
+     * WARNING: This is not a proper implementation. In a production app,
+     * balance changes should happen through backend API calls like deposit or purchase.
+     * 
+     * @return Always returns false to indicate this isn't a real implementation.
      */
     suspend fun updateWalletBalance(walletId: Long, newBalance: Double): Boolean {
+        Log.w(TAG, "updateWalletBalance($walletId, $newBalance) called - this method is deprecated")
         _errorMessage.postValue("Direct wallet balance updates are not supported. Use top-up functionality instead.")
         return false
     }
 
     /**
      * Creates a payment intent for wallet top-up
+     * Matches: WalletController.createWalletTopUpIntent()
+     * 
      * @param amount The amount to top up in BigDecimal
      */
     fun createTopUpPaymentIntent(amount: BigDecimal) {
@@ -91,16 +105,31 @@ class WalletViewModel : ViewModel() {
         _isLoading.value = true
         viewModelScope.launch {
             try {
+                Log.d(TAG, "Creating payment intent for amount: $amount")
                 val request = WalletTopUpRequest(amount)
                 val response = walletService.createWalletTopUpIntent(request)
                 
                 if (response.isSuccessful) {
-                    _paymentIntentData.value = response.body()
+                    val paymentData = response.body()
+                    _paymentIntentData.value = paymentData
+                    Log.d(TAG, "Payment intent created successfully: $paymentData")
+                    
+                    // Refresh wallet after successful payment intent creation
+                    fetchMyWallet()
                 } else {
-                    _errorMessage.value = "Error: ${response.code()} - ${response.message()}"
+                    val errorCode = response.code()
+                    val errorMsg = when (errorCode) {
+                        401, 403 -> "Authentication error (code $errorCode). Please log in again."
+                        400 -> "Invalid request. Check amount and try again."
+                        else -> "Error: ${response.code()} - ${response.message()}"
+                    }
+                    _errorMessage.value = errorMsg
+                    Log.e(TAG, "Failed to create payment intent: $errorMsg")
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Network error: ${e.message}"
+                val errorMsg = "Network error: ${e.message}"
+                _errorMessage.value = errorMsg
+                Log.e(TAG, "Exception creating payment intent: ${e.message}", e)
             } finally {
                 _isLoading.value = false
             }
@@ -112,30 +141,5 @@ class WalletViewModel : ViewModel() {
      */
     fun clearErrorMessage() {
         _errorMessage.value = null
-    }
-
-    /**
-     * Creates a fallback wallet for development/testing
-     * This ensures the app always has a functional wallet
-     */
-    private fun createFallbackWallet() {
-        viewModelScope.launch {
-            try {
-                // Create a minimal wallet instance
-                val wallet = Wallet(
-                    id = 1,
-                    userId = 1,
-                    balance = BigDecimal(5000),  // Give some initial balance for testing
-                    lastUpdatedAt = null
-                )
-                
-                // Update the LiveData
-                _userWallet.value = wallet
-                
-                Log.d("WalletViewModel", "Created fallback wallet with 5000 balance")
-            } catch (e: Exception) {
-                Log.e("WalletViewModel", "Failed to create fallback wallet: ${e.message}")
-            }
-        }
     }
 } 

@@ -9,6 +9,7 @@ import com.sia.credigo.network.RetrofitClient
 import com.jakewharton.threetenabp.AndroidThreeTen
 import com.sia.credigo.model.User
 import android.util.Log
+import com.sia.credigo.manager.WalletManager
 
 class CredigoApp : Application() {
     lateinit var sessionManager: SessionManager
@@ -31,6 +32,12 @@ class CredigoApp : Application() {
             if (value != null) {
                 sessionManager.saveLoginState(value.id.toLong())
                 sessionManager.saveUserData(value)  // Save full user data in session
+                
+                // Initialize services before wallet manager
+                RetrofitClient.initializeAuthenticatedRetrofit(sessionManager)
+                
+                // Now initialize wallet when user is set
+                WalletManager.initialize(value.id)
             } else {
                 sessionManager.clearLoginState()
             }
@@ -44,6 +51,9 @@ class CredigoApp : Application() {
                 loggedInUser = null
                 loggedInuser = null
                 sessionManager.clearLoginState()
+                
+                // Reset wallet manager on logout
+                WalletManager.reset()
             }
         }
 
@@ -54,6 +64,8 @@ class CredigoApp : Application() {
             field = value
             if (value != null) {
                 sessionManager.saveAuthToken(value)
+                // Reinitialize authenticated services when token changes
+                RetrofitClient.initializeAuthenticatedRetrofit(sessionManager)
             } else {
                 sessionManager.clearAuthData()
             }
@@ -62,100 +74,99 @@ class CredigoApp : Application() {
     // Database reference for activities that need it
     val database: Any? = null
 
-    // Authenticated API services
-    lateinit var apiServices: RetrofitClient.AuthenticatedServices
-        private set
-
     companion object {
         lateinit var instance: CredigoApp
             private set
     }
+
+    private val TAG = "CredigoApp"
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         sessionManager = SessionManager(this)
         prefs = getSharedPreferences("credigo_prefs", MODE_PRIVATE)
-
-        // DEVELOPMENT ONLY: Create test user if no session exists
-        // Remove this in production!
-        ensureTestUserExists()
         
-        // Rest of code remains the same...
+        Log.d(TAG, "Initializing CredigoApp")
+        
+        // Check if user is already logged in from session
         val sessionActive = sessionManager.isLoggedIn()
-        
-        // Try multiple sources to determine if we're logged in
         isLoggedIn = sessionActive
         
-        // First try to get the user data from session
-        if (isLoggedIn || sessionManager.getUserId() > 0) {
-            loggedInuser = sessionManager.getUserData()
-            
-            // If user data was loaded successfully, make sure login state is consistent
-            if (loggedInuser != null) {
-                isLoggedIn = true
-                sessionManager.saveLoginState(loggedInuser!!.id.toLong())
-                Log.d("CredigoApp", "Session restored with user: ${loggedInuser!!.username}, ID: ${loggedInuser!!.id}")
-            } else if (sessionActive) {
-                // If session reports active but we couldn't get user data, try to create minimal user
-                val userId = sessionManager.getUserId()
-                val username = sessionManager.getUsername()
-                val email = sessionManager.getUserEmail()
+        if (sessionActive) {
+            // Verify token exists
+            val token = sessionManager.getAuthToken()
+            if (token != null) {
+                Log.d(TAG, "Valid token found in session")
                 
-                if (userId > 0 && username != null) {
-                    loggedInuser = User(
-                        id = userId,
-                        username = username,
-                        email = email ?: "user@example.com"
-                    )
-                    isLoggedIn = true
-                    Log.d("CredigoApp", "Created minimal user from session: $username, ID: $userId")
+                // Initialize API with the session token FIRST
+                RetrofitClient.initializeAuthenticatedRetrofit(sessionManager)
+                
+                // Load user data from session
+                loggedInuser = sessionManager.getUserData()
+                
+                // If user data was successfully loaded, initialize wallet manager
+                if (loggedInuser != null) {
+                    Log.d(TAG, "Session restored with user: ${loggedInuser!!.username}, ID: ${loggedInuser!!.id}")
+                    
+                    // Initialize wallet manager with the logged-in user
+                    WalletManager.initialize(loggedInuser!!.id)
                 } else {
+                    // Session claims to be active but no user data found - invalid state
+                    Log.w(TAG, "Session reports active but no user data found")
                     isLoggedIn = false
                     sessionManager.clearLoginState()
-                    Log.d("CredigoApp", "Session logged in but missing user data, clearing session")
                 }
+            } else {
+                Log.w(TAG, "Session active but no valid token found")
+                isLoggedIn = false
+                sessionManager.clearLoginState()
             }
         } else {
+            Log.d(TAG, "No active session found")
             isLoggedIn = false
-            Log.d("CredigoApp", "No active session found")
         }
-
-        // Initialize authenticated API services
-        apiServices = RetrofitClient.createAuthenticatedServices(this, ProcessLifecycleOwner.get())
 
         AndroidThreeTen.init(this)
     }
     
     /**
-     * DEVELOPMENT ONLY - Creates a test user if no user exists
-     * This ensures the app always has a logged in user for testing
-     * Remove this method in production!
+     * Set the logged in user and initialize all services
      */
-    private fun ensureTestUserExists() {
-        // Check if we already have a user
-        if (sessionManager.isLoggedIn() && sessionManager.getUserData() != null) {
-            Log.d("CredigoApp", "Test user already exists, using existing session")
-            return
-        }
-        
-        // Create a test user for development purposes
-        Log.d("CredigoApp", "Creating test user for development")
-        val testUser = User(
-            id = 1,
-            username = "testuser",
-            email = "test@example.com"
-        )
-        
-        // Save test user to session
-        sessionManager.saveUserData(testUser)
-        sessionManager.saveLoginState(1)
-        
-        // Create a dummy auth token
-        sessionManager.saveAuthToken("test_token_for_development")
+    fun setLoggedInUser(user: User) {
+        Log.d(TAG, "Setting logged in user: ${user.id}")
         
         // Update app state
-        loggedInuser = testUser
+        loggedInuser = user
         isLoggedIn = true
+        
+        // Save to session
+        sessionManager.saveUserData(user)
+        
+        // Initialize API services FIRST
+        RetrofitClient.initializeAuthenticatedRetrofit(sessionManager)
+        
+        // Initialize wallet AFTER services are initialized
+        WalletManager.initialize(user.id)
+    }
+    
+    /**
+     * Perform logout and cleanup all services
+     */
+    fun logout() {
+        Log.d(TAG, "Logging out user")
+        
+        // Reset wallet manager
+        WalletManager.reset()
+        
+        // Reset API services
+        RetrofitClient.resetAuthenticatedRetrofit()
+        
+        // Clear session
+        sessionManager.clearLoginState()
+        
+        // Clear state
+        loggedInuser = null
+        isLoggedIn = false
     }
 }

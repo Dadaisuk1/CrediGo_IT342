@@ -1,52 +1,69 @@
 package com.sia.credigo.network
 
-import android.content.Context
-import androidx.lifecycle.LifecycleOwner
+import android.util.Log
 import com.sia.credigo.utils.SessionManager
-import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
-import java.io.IOException
 
-class AuthInterceptor(
-    private val context: Context,
-    private val lifecycleOwner: LifecycleOwner? = null
-) : Interceptor {
+/**
+ * OkHttp interceptor that adds authorization header to requests
+ * that require authentication using JWT tokens stored in SessionManager.
+ */
+class AuthInterceptor(private val sessionManager: SessionManager) : Interceptor {
+    private val TAG = "AuthInterceptor"
 
-    private val sessionManager by lazy { SessionManager(context) }
-
-    @Throws(IOException::class)
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
+        val requestUrl = originalRequest.url.toString()
         
-        // Skip interceptor for login and registration endpoints
-        if (originalRequest.url.encodedPath.endsWith("login") || 
-            originalRequest.url.encodedPath.endsWith("register")) {
+        // Don't add auth header for login/register requests
+        if (isAuthEndpoint(requestUrl)) {
+            Log.d(TAG, "Skipping auth for auth endpoint: $requestUrl")
             return chain.proceed(originalRequest)
         }
         
-        val authToken = runBlocking { sessionManager.getAuthToken() }
+        val token = sessionManager.getAuthToken()
         
-        return if (authToken != null) {
-            val requestWithAuth = originalRequest.newBuilder()
-                .header("Authorization", "Bearer $authToken")
-                .build()
+        // Log token status (debug only - remove in production)
+        if (token == null) {
+            Log.e(TAG, "No auth token found for request to: $requestUrl")
             
-            val response = chain.proceed(requestWithAuth)
-            
-            // Handle 401/403 by refreshing token or redirecting to login
-            if (response.code == 401 || response.code == 403) {
-                // Token expired or invalid
-                runBlocking { 
-                    sessionManager.clearLoginState() 
-                }
-                response
-            } else {
-                response
+            // Check login state - if user should be logged in but has no token, log the inconsistency
+            if (sessionManager.isLoggedIn()) {
+                Log.e(TAG, "User is logged in but has no token - session inconsistency detected")
             }
         } else {
-            // No token available, proceed without Authorization header
-            chain.proceed(originalRequest)
+            Log.d(TAG, "Adding auth token to request: $requestUrl")
         }
+
+        // Build new request with auth header if token is available
+        val newRequest = if (token != null) {
+            originalRequest.newBuilder()
+                .header("Authorization", "Bearer $token")
+                .build()
+        } else {
+            // Proceed with original request if no token (will likely fail with 401/403)
+            Log.w(TAG, "Proceeding without auth token for: $requestUrl - request will likely fail")
+            originalRequest
+        }
+
+        val response = chain.proceed(newRequest)
+        
+        // Log authentication failures
+        if (response.code == 401 || response.code == 403) {
+            Log.e(TAG, "Authentication failure (${response.code}) for: $requestUrl")
+            
+            if (token != null) {
+                Log.d(TAG, "Token used: ${token.take(15)}...")
+            }
+        }
+        
+        return response
+    }
+
+    private fun isAuthEndpoint(url: String): Boolean {
+        return url.contains("api/auth/login") || 
+               url.contains("api/auth/register") ||
+               url.contains("api/auth/refresh")
     }
 }

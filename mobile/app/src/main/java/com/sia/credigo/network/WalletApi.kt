@@ -12,13 +12,15 @@ import retrofit2.http.*
 interface WalletApi {
     /**
      * Get the authenticated user's wallet
+     * Matches: WalletController.getCurrentUserWallet()
      */
-    @GET("wallet/me")
+    @GET("api/wallet/me")
     suspend fun getMyWallet(): Response<Wallet>
     
     /**
      * Create a payment intent for wallet top-up
+     * Matches: WalletController.createWalletTopUpIntent()
      */
-    @POST("wallet/create-payment-intent")
+    @POST("api/wallet/create-payment-intent")
     suspend fun createWalletTopUpIntent(@Body topUpRequest: WalletTopUpRequest): Response<Map<String, String>>
 }

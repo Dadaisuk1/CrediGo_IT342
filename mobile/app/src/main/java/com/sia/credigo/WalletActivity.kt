@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -11,6 +12,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.sia.credigo.app.CredigoApp
 import com.sia.credigo.fragments.NavbarFragment
+import com.sia.credigo.manager.WalletManager
+import com.sia.credigo.manager.WalletState
 import com.sia.credigo.model.Transaction
 import com.sia.credigo.model.TransactionType
 import com.sia.credigo.model.User
@@ -27,6 +30,9 @@ class WalletActivity : AppCompatActivity() {
     private lateinit var userViewModel: UserViewModel
     private lateinit var walletViewModel: WalletViewModel
     private lateinit var transactionViewModel: TransactionViewModel
+    
+    // Logging tag
+    private val TAG = "WalletActivity"
     
     // User and wallet data
     private lateinit var currentUser: User
@@ -103,23 +109,36 @@ class WalletActivity : AppCompatActivity() {
         // Initialize UI components
         initializeViews()
 
-        // Load wallet data - use the fetchMyWallet method first
-        walletViewModel.fetchMyWallet()
-        
-        // As fallback, also try to load wallet by user ID
-        walletViewModel.getWalletByUserId(currentUser.id.toLong())
+        // ADDED: Observe wallet state from centralized WalletManager
+        // This is an example of how to use the WalletManager
+        WalletManager.walletState.observe(this) { state ->
+            when (state) {
+                is WalletState.Loading -> {
+                    // Show loading indicator
+                    // You could add a progress bar in your layout
+                    Log.d(TAG, "Wallet loading...")
+                }
+                is WalletState.Loaded -> {
+                    // Update UI with wallet data
+                    currentWallet = state.wallet
+                    updateUI()
+                    Log.d(TAG, "Wallet loaded: ${state.wallet.balance}")
+                }
+                is WalletState.Error -> {
+                    // Show error message
+                    Toast.makeText(this, "Wallet error: ${state.message}", Toast.LENGTH_SHORT).show()
+                    Log.e(TAG, "Wallet error: ${state.message}")
+                }
+                else -> { /* Handle other states if needed */ }
+            }
+        }
+
+        // Refresh wallet data - this will use the centralized WalletManager
+        WalletManager.refreshWallet()
 
         // Load the latest user data
         lifecycleScope.launch {
             userViewModel.loadUser(currentUser.id)
-        }
-
-        // Observe wallet data for live updates
-        walletViewModel.userWallet.observe(this) { wallet ->
-            wallet?.let {
-                currentWallet = it
-                updateUI()
-            }
         }
 
         // Observe user data for live updates
@@ -207,47 +226,18 @@ class WalletActivity : AppCompatActivity() {
                 try {
                     val amount = BigDecimal(amountText)
                     if (amount > BigDecimal.ZERO) {
-                        // Get current wallet
-                        val wallet = currentWallet
-                        if (wallet == null) {
-                            Toast.makeText(this, "Wallet not found", Toast.LENGTH_SHORT).show()
-                            return@setOnClickListener
-                        }
-
-                        // Check if new balance would exceed 1,000,000
-                        val newBalance = wallet.balance.add(amount)
-                        if (newBalance > MAX_WALLET_BALANCE) {
-                            // Already showing warning via text watcher
-                        } else {
-                            // Disable button to prevent multiple clicks
-                            cashInButton.isEnabled = false
-
-                            // Create deposit instance
-                            coroutineScope.launch {
-                                val success = createDeposit(amount)
-
-                                if (success) {
-                                    // Update wallet through proper API call
-                                    walletViewModel.createTopUpPaymentIntent(amount)
-
-                                    // Update UI
-                                    // updateUI() will be called by the observer
-
-                                    // Clear input field and selection
-                                    amountEditText.text.clear()
-                                    deselectAllPaymentOptions()
-
-                                    // Reset error message states
-                                    limitWarningText.visibility = View.INVISIBLE
-                                    selectionErrorText.visibility = View.INVISIBLE
-
-                                    Toast.makeText(this@WalletActivity, "Successfully added ₱$amount to your wallet", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    // Re-enable button if deposit failed
-                                    checkCashInButtonStatus()
-                                }
-                            }
-                        }
+                        // ADDED: Use WalletManager for top-up
+                        WalletManager.createTopUpIntent(amount)
+                        
+                        // Clear input field and selection
+                        amountEditText.text.clear()
+                        deselectAllPaymentOptions()
+                        
+                        // Reset error message states
+                        limitWarningText.visibility = View.INVISIBLE
+                        selectionErrorText.visibility = View.INVISIBLE
+                        
+                        Toast.makeText(this, "Processing payment...", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
                     }
@@ -366,40 +356,6 @@ class WalletActivity : AppCompatActivity() {
             cashInButton.alpha = 1.0f
         } else {
             cashInButton.alpha = 0.5f
-        }
-    }
-
-    private suspend fun createDeposit(amount: BigDecimal): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                // Ensure we have a valid payment option
-                if (selectedPaymentOption == null) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@WalletActivity, "Please select a payment method", Toast.LENGTH_SHORT).show()
-                    }
-                    return@withContext false
-                }
-
-                val transaction = Transaction(
-                    userid = currentUser.id.toLong(),
-                    type = selectedPaymentOption!!,  // We know it's not null here
-                    amount = amount.toDouble(),  // Convert BigDecimal to Double for compatibility
-                    timestamp = System.currentTimeMillis(),
-                    transactionType = TransactionType.DEPOSIT
-                )
-
-                // Create the transaction
-                transactionViewModel.createTransaction(transaction)
-
-                // For now, consider it successful if no exception is thrown
-                // In a real app, you'd check the response from createTransaction
-                return@withContext true
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@WalletActivity, "Error creating deposit: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-                return@withContext false
-            }
         }
     }
 
