@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400" fill="none">
+  <rect width="600" height="400" fill="#E6F7FF"/>
+
+  <!-- Background elements -->
+  <circle cx="500" cy="80" r="60" fill="#CCE9FF"/>
+  <circle cx="100" cy="320" r="80" fill="#CCE9FF"/>
+
+  <!-- Mobile device -->
+  <rect x="240" y="80" width="120" height="240" rx="15" fill="white" stroke="#0099FF" stroke-width="5"/>
+  <rect x="250" y="100" width="100" height="180" rx="5" fill="#F0F9FF"/>
+
+  <!-- App interface elements -->
+  <rect x="265" y="120" width="70" height="25" rx="5" fill="#0099FF"/>
+  <rect x="265" y="155" width="30" height="5" rx="2" fill="#0099FF"/>
+  <rect x="265" y="165" width="70" height="5" rx="2" fill="#0099FF"/>
+  <rect x="265" y="175" width="55" height="5" rx="2" fill="#0099FF"/>
+
+  <rect x="265" y="195" width="70" height="30" rx="5" fill="#E6F7FF" stroke="#0099FF" stroke-width="2"/>
+  <rect x="265" y="235" width="70" height="30" rx="5" fill="#E6F7FF" stroke="#0099FF" stroke-width="2"/>
+
+  <!-- Credit card -->
+  <rect x="320" y="180" width="100" height="60" rx="8" transform="rotate(15 320 180)" fill="#0066CC"/>
+  <rect x="330" y="200" width="60" height="8" rx="4" transform="rotate(15 330 200)" fill="white" fill-opacity="0.5"/>
+  <rect x="335" y="220" width="40" height="8" rx="4" transform="rotate(15 335 220)" fill="white" fill-opacity="0.5"/>
+
+  <!-- Financial graph -->
+  <rect x="150" y="220" width="120" height="80" rx="5" fill="white" stroke="#0099FF" stroke-width="2"/>
+  <path d="M160 270 L180 250 L200 260 L220 240 L240 245 L260 220" stroke="#0099FF" stroke-width="3" fill="none"/>
+  <circle cx="180" cy="250" r="4" fill="#0099FF"/>
+  <circle cx="200" cy="260" r="4" fill="#0099FF"/>
+  <circle cx="220" cy="240" r="4" fill="#0099FF"/>
+  <circle cx="240" cy="245" r="4" fill="#0099FF"/>
+  <circle cx="260" cy="220" r="4" fill="#0099FF"/>
+
+  <!-- Dollar symbols -->
+  <text x="400" y="120" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#0099FF">$</text>
+  <text x="180" y="150" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#0099FF" opacity="0.3">$</text>
+  <text x="420" y="280" font-family="Arial, sans-serif" font-size="30" font-weight="bold" fill="#0099FF" opacity="0.5">$</text>
+</svg>

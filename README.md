@@ -144,3 +144,11 @@
       />
   </a>
 </div>
+
+
+## Top contributors:
+
+<a href="https://github.com/Dadaisuk1/CrediGo_IT342/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Dadaisuk1/CrediGo_IT342" alt="contrib.rocks image" />
+</a>
+
