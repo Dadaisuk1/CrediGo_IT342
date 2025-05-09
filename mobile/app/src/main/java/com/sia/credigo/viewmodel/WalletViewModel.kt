@@ -196,4 +196,66 @@ class WalletViewModel : ViewModel() {
     fun clearErrorMessage() {
         _errorMessage.postValue(null)
     }
+
+    // Add a direct topup method as a fallback
+    /**
+     * Direct wallet topup method that bypasses PayMongo (for testing and fallback)
+     * This uses the /api/wallet/topup endpoint directly
+     */
+    fun directTopupWallet(amount: BigDecimal) {
+        if (amount <= BigDecimal.ZERO) {
+            _errorMessage.postValue("Amount must be greater than zero")
+            return
+        }
+
+        _isLoading.postValue(true)
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Performing direct wallet topup for amount: $amount")
+                val request = WalletTopUpRequest(amount, "direct")
+                
+                val response = withContext(Dispatchers.IO) {
+                    walletService.topupWallet(request)
+                }
+                
+                if (response.isSuccessful) {
+                    val updatedWallet = response.body()
+                    Log.d(TAG, "Direct topup successful: $updatedWallet")
+                    _userWallet.postValue(updatedWallet)
+                    
+                    // Create a "fake" payment response to indicate success
+                    _paymongoResponse.postValue(PaymentResponse(
+                        clientSecret = "direct_topup_${System.currentTimeMillis()}",
+                        checkoutUrl = null,
+                        message = "Direct topup successful"
+                    ))
+                } else {
+                    val errorCode = response.code()
+                    var errorBody: String? = null
+                    try {
+                        errorBody = response.errorBody()?.string()
+                        Log.e(TAG, "Error response body: $errorBody")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Could not read error body: ${e.message}")
+                    }
+                    
+                    val errorMsg = when (errorCode) {
+                        401, 403 -> "Authentication error (code $errorCode). Please log in again."
+                        400 -> "Invalid request. Check amount and try again. Details: $errorBody"
+                        404 -> "Direct topup API endpoint not found (code 404)."
+                        500, 502, 503, 504 -> "Server error (code $errorCode). Please try again later."
+                        else -> "Error: ${response.code()} - ${response.message()}"
+                    }
+                    _errorMessage.postValue(errorMsg)
+                    Log.e(TAG, "Failed to perform direct topup: $errorMsg")
+                }
+            } catch (e: Exception) {
+                val errorMsg = "Network error during direct topup: ${e.message}"
+                _errorMessage.postValue(errorMsg)
+                Log.e(TAG, "Exception during direct topup: ${e.message}", e)
+            } finally {
+                _isLoading.postValue(false)
+            }
+        }
+    }
 } 
