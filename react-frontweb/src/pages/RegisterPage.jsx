@@ -1,10 +1,9 @@
 // src/components/Register.jsx // Or RegisterPage.jsx - match your filename
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import credigoLogo from '../assets/images/credigo_icon.svg'; // Import logo
-import { Link } from 'react-router-dom'; // Import Link
 import { Eye, EyeClosed } from 'lucide-react'; // Import icons
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import credigoLogo from '../assets/images/credigo_icon.svg'; // Import logo
+import { useAuth } from '../context/AuthContext';
 
 // Google Icon component (same as in LoginPage)
 const GoogleIcon = () => (
@@ -90,7 +89,7 @@ function RegisterPage() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="p-3 text-sm text-red-100 bg-red-500/30 rounded-lg border border-red-500/50" role="alert">
-              <span className="font-medium">Registration Error:</span> {typeof error === 'string' ? error : 'Could not register. Please check details.'}
+              <span className="font-medium">Registration Failed:</span> {typeof error === 'string' ? error : 'Could not register. Please check details.'}
             </div>
           )}
 

@@ -105,8 +105,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return response;
     } catch (err) {
-      const message = err.response?.data?.message || err.message || "Registration failed";
-      setError(message);
+      // Improved error handling to extract the actual error message from the response
+      console.error('Registration error:', err.response?.data || err.message);
+
+      // Extract the error message from the response body
+      // The Spring backend returns the error message directly in the response body as a string
+      const errorMessage = typeof err.response?.data === 'string'
+        ? err.response.data
+        : (err.response?.data?.message || err.message || "Registration failed");
+
+      setError(errorMessage);
       setLoading(false);
       return false;
     }

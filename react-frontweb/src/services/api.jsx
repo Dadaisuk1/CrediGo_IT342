@@ -192,26 +192,36 @@ export const removeFromWishlist = (productId) => {
  * @param {number} productId - The ID of the product.
  * @returns {Promise<axios.Response>} The Axios response object.
  */
-export const getReviewsForProduct = (productId) => {
+export const getProductReviews = (productId) => {
   return apiClient.get(`/api/products/${productId}/reviews`);
 };
 
 /**
- * Adds a review for a specific product (requires user to be authenticated and have purchased).
- * @param {number} productId - The ID of the product being reviewed.
- * @param {object} reviewData - { rating: ..., comment: ... }
+ * Submits a review for a product.
+ * @param {number} productId - The ID of the product to review.
+ * @param {object} reviewData - { rating: Number (1-5), comment: String }
  * @returns {Promise<axios.Response>} The Axios response object.
  */
-export const addReview = (productId, reviewData) => {
+export const submitProductReview = (productId, reviewData) => {
   return apiClient.post(`/api/products/${productId}/reviews`, reviewData);
 };
 
 /**
- * Deletes the authenticated user's review for a specific product.
- * @param {number} productId - The ID of the product whose review is to be deleted.
+ * Updates an existing review for a product.
+ * @param {number} productId - The ID of the product.
+ * @param {object} reviewData - { rating: Number (1-5), comment: String }
  * @returns {Promise<axios.Response>} The Axios response object.
  */
-export const deleteReview = (productId) => {
+export const updateProductReview = (productId, reviewData) => {
+  return apiClient.put(`/api/products/${productId}/reviews`, reviewData);
+};
+
+/**
+ * Deletes a user's review for a specific product.
+ * @param {number} productId - The ID of the product.
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const deleteProductReview = (productId) => {
   return apiClient.delete(`/api/products/${productId}/reviews`);
 };
 
