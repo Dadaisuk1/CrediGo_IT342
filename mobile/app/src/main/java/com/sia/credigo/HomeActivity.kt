@@ -47,7 +47,7 @@ class HomeActivity : AppCompatActivity() {
 
         // Get user ID from CredigoApp
         val app = application as CredigoApp
-        currentUserId = app.loggedInuser?.userid ?: -1
+        currentUserId = app.loggedInuser?.id ?: -1
         Log.d(TAG, "Current user ID: $currentUserId")
 
         // Initialize ViewModels
@@ -77,7 +77,7 @@ class HomeActivity : AppCompatActivity() {
         // Load wallet data for current user
         if (currentUserId > 0) {
             Log.d(TAG, "Loading wallet for user ID: $currentUserId")
-            walletViewModel.getWalletByUserId(currentUserId.toLong())
+            walletViewModel.fetchMyWallet()
         }
 
         // Fetch platforms from backend
@@ -197,6 +197,9 @@ class HomeActivity : AppCompatActivity() {
         mailViewModel.hasPurchaseMail.observe(this) { hasPurchaseMail ->
             updateMailIcon(mailViewModel.unreadMailCount.value ?: 0, hasPurchaseMail)
         }
+        
+        // Refresh wallet data
+        walletViewModel.fetchMyWallet()
         
         // Refresh platforms in case data changed
         viewModel.fetchPlatforms()

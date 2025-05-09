@@ -82,6 +82,7 @@ object WalletManager {
         Log.d(TAG, "Creating top-up intent for $amount")
         _walletState.value = WalletState.Loading
         
+        // Update wallet balance via the backend payment intent API
         walletViewModel.createTopUpPaymentIntent(amount)
     }
     

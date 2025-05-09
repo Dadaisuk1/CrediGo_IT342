@@ -151,6 +151,42 @@ class CredigoApp : Application() {
     }
     
     /**
+     * Refresh authentication to ensure API calls work correctly
+     * Call this before making sensitive API calls that require auth
+     * 
+     * @return True if authentication is valid, false otherwise
+     */
+    fun refreshAuthentication(): Boolean {
+        Log.d(TAG, "Refreshing authentication")
+        
+        // Check if we have a valid token
+        val token = sessionManager.getAuthToken()
+        if (token == null) {
+            Log.w(TAG, "No valid token found during refresh")
+            return false
+        }
+        
+        // Re-initialize API client with the current token
+        RetrofitClient.initializeAuthenticatedRetrofit(sessionManager)
+        
+        // Get user data from session to ensure it's available
+        val user = sessionManager.getUserData()
+        if (user == null) {
+            Log.w(TAG, "No user data found during refresh")
+            return false
+        }
+        
+        // Update the logged in user reference if needed
+        if (loggedInuser == null || loggedInuser?.id != user.id) {
+            Log.d(TAG, "Updating logged in user during refresh")
+            loggedInuser = user
+        }
+        
+        Log.d(TAG, "Authentication refreshed successfully")
+        return true
+    }
+    
+    /**
      * Perform logout and cleanup all services
      */
     fun logout() {
