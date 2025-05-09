@@ -88,25 +88,41 @@ export const getWallet = () => {
 };
 
 /**
- * Creates a PayMongo Payment Intent for topping up the wallet.
- * @param {object} topUpData - Payment data object containing:
- *   - amount: 100.00 (required)
- *   - paymentType: 'card', 'gcash', or 'paymaya' (required)
- *   - card: { number, exp_month, exp_year, cvc, name } (for card payments)
- *   - mobileNumber: '09XXXXXXXXX' (for gcash/paymaya payments)
- * @returns {Promise<axios.Response>} The Axios response object containing the payment details.
+ * Fetches the wallet transactions for the current user.
+ * @returns {Promise<axios.Response>} The Axios response object.
  */
-export const createWalletTopUpIntent = (topUpData) => {
-  return apiClient.post('/api/wallet/create-payment-intent', topUpData);
+export const getWalletTransactions = () => {
+  return apiClient.get('/api/wallet/transactions');
 };
 
 /**
- * Checks the status of a payment intent and automatically credits wallet if successful.
- * @param {string} paymentIntentId - The ID of the payment intent to check.
+ * Creates a PayMongo payment link for topping up the wallet using the Links API.
+ * @param {object} topUpData - Payment data object containing:
+ *   - amount: 100.00 (required) - Minimum amount is ₱100
+ *   - paymentType: 'card', 'gcash', 'paymaya', or any supported method
+ * @returns {Promise<axios.Response>} The Axios response object containing the payment details with checkout URL.
+ */
+export const createWalletTopUpIntent = (topUpData) => {
+  // Use the same endpoint, backend now supports the Links API
+  return apiClient.post('/api/payments/create-payment-intent', topUpData);
+};
+
+/**
+ * Checks the status of a payment link.
+ * @param {string} paymentId - The ID of the payment link to check.
  * @returns {Promise<axios.Response>} The Axios response object with payment status.
  */
-export const checkPaymentStatus = (paymentIntentId) => {
-  return apiClient.get(`/api/payments/status/${paymentIntentId}`);
+export const checkPaymentStatus = (paymentId) => {
+  return apiClient.get(`/api/payments/status/${paymentId}`);
+};
+
+/**
+ * For testing only - Manually completes a payment when the webhook isn't working
+ * @param {string} paymentId - The ID of the payment to complete
+ * @returns {Promise<axios.Response>} The Axios response object
+ */
+export const manuallyCompletePayment = (paymentId) => {
+  return apiClient.post(`/api/payments/test-complete-payment/${paymentId}`);
 };
 
 // --- Product/Platform API Calls ---

@@ -15,11 +15,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
+import org.springframework.security.web.authentication.rememberme.PersistentTokenBasedRememberMeServices;
 import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -38,21 +39,19 @@ public class SecurityConfig {
   private final CustomOAuth2UserService customOAuth2UserService;
   private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
   private final DataSource dataSource;
+  private final UserDetailsService userDetailsService;
 
   @Autowired
   public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
                        CustomOAuth2UserService customOAuth2UserService,
                        OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
-                       DataSource dataSource) {
+                       DataSource dataSource,
+                       UserDetailsService userDetailsService) {
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.customOAuth2UserService = customOAuth2UserService;
     this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
     this.dataSource = dataSource;
-  }
-
-  @Bean
-  public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
+    this.userDetailsService = userDetailsService;
   }
 
   @Bean
@@ -69,6 +68,18 @@ public class SecurityConfig {
     // Uncomment the below line only the first time to create the remember-me table
     // tokenRepository.setCreateTableOnStartup(true);
     return tokenRepository;
+  }
+
+  // Add RememberMeServices bean
+  @Bean
+  public RememberMeServices rememberMeServices() {
+    PersistentTokenBasedRememberMeServices rememberMeServices =
+        new PersistentTokenBasedRememberMeServices(
+            "credigo-remember-me-key",
+            userDetailsService,
+            persistentTokenRepository());
+    rememberMeServices.setTokenValiditySeconds(24 * 60 * 60); // 1 day
+    return rememberMeServices;
   }
 
   // --- Global CORS Configuration ---
@@ -117,7 +128,8 @@ public class SecurityConfig {
         .rememberMe(rememberMe -> rememberMe
             .tokenRepository(persistentTokenRepository())
             .tokenValiditySeconds(24 * 60 * 60) // 1 day
-            .key("credigo-remember-me-key")); // Secret key for token signatures
+            .key("credigo-remember-me-key")
+            .rememberMeServices(rememberMeServices())); // Use our defined rememberMeServices
 
     http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -3,6 +3,7 @@ package com.credigo.backend.controller;
 import com.credigo.backend.dto.PaymentResponse; // Import PaymentResponse
 import com.credigo.backend.dto.WalletResponse;
 import com.credigo.backend.dto.WalletTopUpRequest; // Import WalletTopUpRequest
+import com.credigo.backend.dto.WalletTransactionResponse; // Import WalletTransactionResponse
 import com.credigo.backend.service.PaymentService; // Import PaymentService
 import com.credigo.backend.service.WalletService;
 import jakarta.validation.Valid; // Import Valid
@@ -14,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*; // Import PostMapping
+
+import java.util.List;
 
 /**
  * REST Controller for managing User Wallets and initiating payments.
@@ -65,6 +68,40 @@ public class WalletController {
     } catch (Exception e) {
       log.error("Unexpected error fetching wallet for user {}: {}", currentUsername, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred.");
+    }
+  }
+
+  /**
+   * Endpoint to get all wallet transactions for the currently authenticated user.
+   *
+   * @return ResponseEntity containing a list of WalletTransactionResponse DTOs on success, or an error status.
+   */
+  @GetMapping("/transactions")
+  public ResponseEntity<?> getWalletTransactions() {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication == null || !authentication.isAuthenticated()
+        || "anonymousUser".equals(authentication.getPrincipal())) {
+      log.warn("Attempt to access wallet transactions by unauthenticated user.");
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated.");
+    }
+
+    String currentUsername = authentication.getName();
+    log.debug("Received request to get wallet transactions for user: {}", currentUsername);
+
+    try {
+      List<WalletTransactionResponse> transactions = walletService.getWalletTransactions(currentUsername);
+      return ResponseEntity.ok(transactions);
+    } catch (RuntimeException e) {
+      log.error("Error fetching wallet transactions for user {}: {}", currentUsername, e.getMessage());
+      if (e.getMessage().contains("not found")) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+      }
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching wallet transactions.");
+    } catch (Exception e) {
+      log.error("Unexpected error fetching wallet transactions for user {}: {}",
+          currentUsername, e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body("An unexpected error occurred while fetching wallet transactions.");
     }
   }
 

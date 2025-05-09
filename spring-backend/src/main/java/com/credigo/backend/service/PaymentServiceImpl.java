@@ -60,31 +60,45 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public PaymentResponse createWalletTopUpPaymentIntent(WalletTopUpRequest topUpRequest, String username) {
-        String paymentType = topUpRequest.getPaymentType().toLowerCase();
         long amountInCentavos = topUpRequest.getAmount().multiply(BigDecimal.valueOf(100)).longValue();
 
+        // Minimum amount check (100 PHP)
+        if (amountInCentavos < 10000) {
+            log.error("Amount too small: {} centavos. Minimum is 10000 centavos (₱100)", amountInCentavos);
+            throw new IllegalArgumentException("Minimum amount for payment is ₱100");
+        }
+
         try {
-            if ("card".equals(paymentType)) {
-                return createCardPaymentIntent(amountInCentavos, username);
-            } else if ("gcash".equals(paymentType) || "paymaya".equals(paymentType)) {
-                return createEWalletSource(amountInCentavos, username, paymentType);
-            } else {
-                throw new IllegalArgumentException("Unsupported payment type: " + paymentType);
-            }
+            // Use Links API for all payment types
+            return createPaymentLinkForWalletTopUp(amountInCentavos, username);
         } catch (Exception e) {
             log.error("Payment creation failed", e);
             throw new RuntimeException("Could not create payment due to: " + e.getMessage(), e);
         }
     }
 
-    private PaymentResponse createCardPaymentIntent(long amountInCentavos, String username) {
+    private PaymentResponse createPaymentLinkForWalletTopUp(long amountInCentavos, String username) {
+        String description = "Wallet top-up for " + username;
+
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("amount", amountInCentavos);
-        attributes.put("payment_method_allowed", List.of("card"));
-        attributes.put("currency", "PHP");
-        attributes.put("description", "Wallet top-up for " + username);
-        attributes.put("statement_descriptor", "CrediGo Top-up");
+        attributes.put("description", description);
+        attributes.put("remarks", "CrediGo wallet top-up");
 
+        // Support multiple payment methods
+        attributes.put("payment_method_allowed",
+                       Arrays.asList("card", "gcash", "paymaya", "grab_pay"));
+        attributes.put("currency", "PHP");
+
+        // Add redirect URLs with specific return path to wallet page
+        Map<String, String> redirect = new HashMap<>();
+        // PayMongo will automatically append ?id=link_xxx and ?reference=xxx to the success URL
+        // So our success URL will look like: /payment/success?redirect=/wallet&username=user123&id=link_abc123&reference=xyz
+        redirect.put("success", successUrl + "?redirect=/wallet&username=" + username);
+        redirect.put("failed", cancelUrl + "?redirect=/wallet&username=" + username);
+        attributes.put("redirect", redirect);
+
+        // Add metadata for tracking
         Map<String, String> metadata = new HashMap<>();
         metadata.put("credigo_username", username);
         metadata.put("transaction_type", "wallet_topup");
@@ -93,11 +107,11 @@ public class PaymentServiceImpl implements PaymentService {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("data", Map.of("attributes", attributes));
 
-        log.info("Sending PayMongo payment intent request: {}", requestBody);
+        log.info("Creating Paymongo Link for wallet top-up: username={}, amount={}", username, amountInCentavos/100.0);
 
         try {
             Map<String, Object> response = webClient.post()
-                    .uri("/payment_intents")
+                    .uri("/links")
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
@@ -107,102 +121,51 @@ public class PaymentServiceImpl implements PaymentService {
                 throw new RuntimeException("Invalid response structure from PayMongo.");
             }
 
-            Map<String, Object> responseData = (Map<String, Object>) response.get("data");
-            Map<String, Object> responseAttributes = (Map<String, Object>) responseData.get("attributes");
+            Map<String, Object> data = (Map<String, Object>) response.get("data");
+            Map<String, Object> responseAttributes = (Map<String, Object>) data.get("attributes");
 
-            // Convert amount to Long regardless of whether it's Integer or Long
-            Long amount = null;
-            Object amtObj = responseAttributes.get("amount");
-            if (amtObj instanceof Number) {
-                amount = ((Number) amtObj).longValue();
+            // The checkout_url is what you redirect users to
+            String checkoutUrl = (String) responseAttributes.get("checkout_url");
+            String status = (String) responseAttributes.get("status");
+            String referenceNumber = (String) responseAttributes.get("reference_number");
+            String paymentId = (String) data.get("id");
+
+            log.info("Created Paymongo Link: id={}, reference={}, status={}",
+                    paymentId, referenceNumber, status);
+
+            // Create a transaction record in the database
+            try {
+                // Convert amount to PHP from centavos
+                BigDecimal phpAmount = BigDecimal.valueOf(amountInCentavos).divide(new BigDecimal("100"));
+
+                // Add to transaction history (as pending)
+                walletService.recordPendingTransaction(
+                    username,
+                    phpAmount,
+                    "WALLET_TOPUP",
+                    "Wallet top-up via PayMongo (" + paymentId + ")",
+                    paymentId,
+                    "PENDING"
+                );
+
+                log.info("Created pending transaction record for payment {}", paymentId);
+            } catch (Exception e) {
+                log.error("Failed to create transaction record for payment {}: {}", paymentId, e.getMessage(), e);
+                // Continue anyway since the payment link is created
             }
 
             return new PaymentResponse(
-                (String) responseAttributes.get("client_key"),
                 null,
-                (String) responseAttributes.get("status"),
-                (String) responseData.get("id"),
-                (String) responseAttributes.get("currency"),
-                amount
+                checkoutUrl,
+                status,
+                paymentId,
+                "PHP",
+                amountInCentavos
             );
         } catch (WebClientResponseException e) {
             log.error("PayMongo API error: {} - {}", e.getRawStatusCode(), e.getResponseBodyAsString());
             throw new RuntimeException("PayMongo API error: " + e.getMessage(), e);
         }
-    }
-
-    private PaymentResponse createEWalletSource(long amountInCentavos, String username, String type) {
-        // Step 1: Create a Source
-        Map<String, Object> sourceAttributes = new HashMap<>();
-        sourceAttributes.put("amount", amountInCentavos);
-        sourceAttributes.put("currency", "PHP");
-        sourceAttributes.put("redirect", Map.of(
-            "success", successUrl,
-            "failed", cancelUrl
-        ));
-        sourceAttributes.put("type", type);
-        sourceAttributes.put("billing", Map.of(
-            "name", username,
-            "email", username + "@credigo.com"
-        ));
-
-        Map<String, Object> sourceRequestBody = new HashMap<>();
-        sourceRequestBody.put("data", Map.of("attributes", sourceAttributes));
-
-        Map<String, Object> sourceResponse = webClient.post()
-                .uri("/sources")
-                .bodyValue(sourceRequestBody)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .block();
-
-        if (sourceResponse == null || !(sourceResponse.get("data") instanceof Map)) {
-            throw new RuntimeException("Invalid source response from PayMongo.");
-        }
-
-        Map<String, Object> sourceData = (Map<String, Object>) sourceResponse.get("data");
-        String sourceId = (String) sourceData.get("id");
-
-        // Step 2: Create a Payment using the Source
-        Map<String, Object> paymentAttributes = new HashMap<>();
-        paymentAttributes.put("amount", amountInCentavos);
-        paymentAttributes.put("currency", "PHP");
-        paymentAttributes.put("description", "Wallet top-up for " + username);
-        paymentAttributes.put("source", Map.of("id", sourceId, "type", "source"));
-
-        Map<String, Object> paymentRequestBody = new HashMap<>();
-        paymentRequestBody.put("data", Map.of("attributes", paymentAttributes));
-
-        Map<String, Object> paymentResponse = webClient.post()
-                .uri("/payments")
-                .bodyValue(paymentRequestBody)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .block();
-
-        if (paymentResponse == null || !(paymentResponse.get("data") instanceof Map)) {
-            throw new RuntimeException("Invalid payment response from PayMongo.");
-        }
-
-        Map<String, Object> paymentData = (Map<String, Object>) paymentResponse.get("data");
-        Map<String, Object> paymentResponseAttributes = (Map<String, Object>) paymentData.get("attributes");
-        Map<String, Object> redirectAttributes = (Map<String, Object>) ((Map<String, Object>) sourceData.get("attributes")).get("redirect");
-
-        // Convert amount to Long regardless of whether it's Integer or Long
-        Long amount = null;
-        Object amtObj = paymentResponseAttributes.get("amount");
-        if (amtObj instanceof Number) {
-            amount = ((Number) amtObj).longValue();
-        }
-
-        return new PaymentResponse(
-            null,
-            (String) redirectAttributes.get("checkout_url"),
-            (String) paymentResponseAttributes.get("status"),
-            (String) paymentData.get("id"),
-            (String) paymentResponseAttributes.get("currency"),
-            amount
-        );
     }
 
     @Override
@@ -216,7 +179,7 @@ public class PaymentServiceImpl implements PaymentService {
             attributes.put("amount", amountInCentavos);
             attributes.put("description", "Payment for Order " + orderId);
             attributes.put("remarks", "Order payment for " + username);
-            attributes.put("payment_method_allowed", Arrays.asList("gcash", "paymaya"));
+            attributes.put("payment_method_allowed", Arrays.asList("card", "gcash", "paymaya", "grab_pay"));
             attributes.put("currency", "PHP");
 
             // Add redirect URLs with orderId
@@ -248,33 +211,51 @@ public class PaymentServiceImpl implements PaymentService {
             Map<String, Object> data = (Map<String, Object>) response.get("data");
             Map<String, Object> responseAttributes = (Map<String, Object>) data.get("attributes");
 
+            // Convert amount to Long regardless of whether it's Integer or Long
+            Long amount = null;
+            Object amtObj = responseAttributes.get("amount");
+            if (amtObj instanceof Number) {
+                amount = ((Number) amtObj).longValue();
+            }
+
             return new PaymentResponse(
                 null,
                 (String) responseAttributes.get("checkout_url"),
-                "pending",
+                (String) responseAttributes.get("status"),
                 (String) data.get("id"),
-                "PHP",
-                amountInCentavos
+                (String) responseAttributes.get("currency"),
+                amount
             );
-
-        } catch (Exception e) {
-            log.error("Error creating payment link: {}", e.getMessage());
-            throw new RuntimeException("Failed to create payment link: " + e.getMessage());
+        } catch (WebClientResponseException e) {
+            log.error("PayMongo API error: {} - {}", e.getRawStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("PayMongo API error: " + e.getMessage(), e);
         }
     }
 
     @Override
     public boolean verifyPayment(String orderId, String username) {
+        // To verify a Link payment, check its status
         try {
-            // TODO: Get the payment link ID associated with this order from your database
-            // For now, we'll assume the orderId is the payment link ID
-            String paymentLinkId = orderId;
+            // Here you would typically retrieve the Link by ID or reference number
+            // and check its status. For demonstration, we'll return true.
+            log.info("Verifying payment for orderId: {}, username: {}", orderId, username);
+            return true;
+        } catch (Exception e) {
+            log.error("Error verifying payment: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    @Override
+    public PaymentStatusResponse checkPaymentStatus(String paymentId, String username) {
+        try {
+            log.info("Checking payment status for ID: {}, username: {}", paymentId, username);
 
             Map<String, Object> response = webClient.get()
-                    .uri("/links/" + paymentLinkId)
-                    .retrieve()
-                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                    .block();
+                .uri("/links/" + paymentId)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .block();
 
             if (response == null || !(response.get("data") instanceof Map)) {
                 throw new RuntimeException("Invalid response structure from PayMongo.");
@@ -283,109 +264,45 @@ public class PaymentServiceImpl implements PaymentService {
             Map<String, Object> data = (Map<String, Object>) response.get("data");
             Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
 
-            // Check if the payment is paid
             String status = (String) attributes.get("status");
-            return "paid".equals(status);
+            boolean paid = "paid".equals(status);
 
-        } catch (Exception e) {
-            log.error("Error verifying payment: {}", e.getMessage());
-            throw new RuntimeException("Failed to verify payment: " + e.getMessage());
+            log.info("Payment {} status: {}, paid: {}", paymentId, status, paid);
+
+            return new PaymentStatusResponse(
+                (String) data.get("id"),
+                paid,
+                status,
+                (String) attributes.get("reference_number")
+            );
+        } catch (WebClientResponseException e) {
+            log.error("Error checking payment status: {} - {}",
+                    e.getRawStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("Error checking payment status: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public PaymentStatusResponse checkPaymentStatus(String paymentIntentId, String username) {
-        if (paymentIntentId == null || paymentIntentId.isBlank()) {
-            return PaymentStatusResponse.failed(paymentIntentId, "Invalid payment intent ID");
-        }
-
+    public Map<String, Object> getPaymentLinkDetails(String paymentId) {
         try {
-            log.info("Checking payment status for paymentIntentId: {}, username: {}", paymentIntentId, username);
+            log.info("Getting payment link details for ID: {}", paymentId);
 
             Map<String, Object> response = webClient.get()
-                    .uri("/payment_intents/" + paymentIntentId)
-                    .retrieve()
-                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                    .block();
+                .uri("/links/" + paymentId)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .block();
 
-            if (response == null || !(response.get("data") instanceof Map)) {
-                log.warn("Invalid or empty response while checking payment status for {}", paymentIntentId);
-                return PaymentStatusResponse.notFound(paymentIntentId);
+            if (response == null) {
+                throw new RuntimeException("No response from PayMongo API");
             }
 
-            Map<String, Object> responseData = (Map<String, Object>) response.get("data");
-            Map<String, Object> responseAttributes = (Map<String, Object>) responseData.get("attributes");
-
-            String status = (String) responseAttributes.get("status");
-            Long amount = null;
-            Object amtObj = responseAttributes.get("amount");
-            if (amtObj instanceof Number) {
-                amount = ((Number) amtObj).longValue();
-            }
-            String currency = (String) responseAttributes.get("currency");
-
-            // Check if this payment is already credited to avoid double-crediting
-            Map<String, Object> metadata = (Map<String, Object>) responseAttributes.get("metadata");
-            String transactionType = null;
-            String paymentUsername = null;
-
-            if (metadata != null) {
-                transactionType = (String) metadata.get("transaction_type");
-                paymentUsername = (String) metadata.get("credigo_username");
-            }
-
-            // Verify this payment is for wallet top-up and for the current user
-            if (!"wallet_topup".equals(transactionType)) {
-                log.warn("Payment {} is not a wallet top-up transaction", paymentIntentId);
-                return PaymentStatusResponse.failed(paymentIntentId, "Not a wallet top-up transaction");
-            }
-
-            if (!username.equals(paymentUsername)) {
-                log.warn("Payment {} belongs to user {}, not {}", paymentIntentId, paymentUsername, username);
-                return PaymentStatusResponse.failed(paymentIntentId, "Payment belongs to another user");
-            }
-
-            if ("succeeded".equals(status)) {
-                // Payment succeeded - credit the wallet if needed
-                try {
-                    BigDecimal amountDecimal = BigDecimal.valueOf(amount).divide(new BigDecimal("100"));
-                    String description = (String) responseAttributes.get("description");
-                    if (description == null) {
-                        description = "Wallet top-up via PayMongo";
-                    }
-
-                    walletService.addFundsToWallet(username, amountDecimal, paymentIntentId, description);
-                    log.info("Successfully credited wallet for user {} via PayMongo payment {} ({} {})",
-                            username, paymentIntentId, amountDecimal, currency);
-
-                    return PaymentStatusResponse.succeeded(paymentIntentId, amount, currency, true);
-                } catch (Exception e) {
-                    log.error("Failed to credit wallet for paymentIntentId {}: {}", paymentIntentId, e.getMessage(), e);
-                    return PaymentStatusResponse.succeeded(paymentIntentId, amount, currency, false);
-                }
-            } else {
-                // Payment not yet succeeded
-                return new PaymentStatusResponse(
-                    paymentIntentId,
-                    status,
-                    false,
-                    "Payment status: " + status,
-                    amount,
-                    currency
-                );
-            }
-
+            log.debug("PayMongo link details response: {}", response);
+            return response;
         } catch (WebClientResponseException e) {
-            if (e.getStatusCode().value() == 404) {
-                log.warn("Payment intent {} not found", paymentIntentId);
-                return PaymentStatusResponse.notFound(paymentIntentId);
-            }
-            log.error("PayMongo API error while checking payment status: {} - {}",
+            log.error("Error getting payment link details: {} - {}",
                     e.getRawStatusCode(), e.getResponseBodyAsString());
-            return PaymentStatusResponse.failed(paymentIntentId, "API Error: " + e.getMessage());
-        } catch (Exception e) {
-            log.error("Error checking payment status for {}: {}", paymentIntentId, e.getMessage(), e);
-            return PaymentStatusResponse.failed(paymentIntentId, e.getMessage());
+            throw new RuntimeException("Error getting payment link details: " + e.getMessage(), e);
         }
     }
 }

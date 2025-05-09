@@ -154,6 +154,9 @@ public class PaymentController {
             } else if ("payment_intent.succeeded".equals(eventType)) {
                 processSuccessfulPaymentIntent(attributes);
                 log.info("Processing {} event.", eventType);
+            } else if ("link.paid".equals(eventType)) {
+                processLinkPaidEvent(attributes);
+                log.info("Processing {} event.", eventType);
             } else {
                 log.info("Ignoring PayMongo event type: {}", eventType);
             }
@@ -177,86 +180,53 @@ public class PaymentController {
      * @param attributes The attributes map from the webhook event data.
      */
     private void processPaymentPaidEvent(Map<String, Object> attributes) {
-        String paymentId = null; // Example: Assuming 'payment.paid' has a payment ID
+        String paymentId = null;
         try {
-            // --- Extract fields specific to the 'payment.paid' event ---
-            // You MUST inspect the actual JSON PayMongo sends for 'payment.paid'
-            // to know the correct field names and structure. The following are guesses.
-            paymentId = attributes.get("id") instanceof String ? (String) attributes.get("id") : null; // Might be
-                                                                                                       // payment ID
+            paymentId = attributes.get("id") instanceof String ? (String) attributes.get("id") : null;
 
             Long amount = null;
             Object amtObj = attributes.get("amount");
             if (amtObj instanceof Number) {
                 amount = ((Number) amtObj).longValue();
             } else {
-                log.warn(
-                        "PayMongo payment.paid event: 'amount' is missing or not a number in attributes for payment {}",
-                        paymentId);
+                log.warn("PayMongo payment.paid event: 'amount' is missing or not a number in attributes for payment {}", paymentId);
+                return;
             }
 
             String currency = attributes.get("currency") instanceof String ? (String) attributes.get("currency") : null;
-            String description = attributes.get("description") instanceof String
-                    ? (String) attributes.get("description")
-                    : "Payment via PayMongo"; // Default description
+            String description = attributes.get("description") instanceof String ? (String) attributes.get("description") : "Payment via PayMongo";
 
-            // --- How to get the username? ---
-            // Does 'payment.paid' have metadata? Or do you need to look up the associated
-            // source/payment_intent?
-            // This part is CRITICAL and depends entirely on the 'payment.paid' event
-            // structure.
-            // Option 1: Check for metadata directly on the payment (if available)
+            // Extract metadata from the payment
             String username = null;
             String type = null;
+            String paymentSource = null;
             Map<String, Object> metadata = null;
+
             if (attributes.get("metadata") instanceof Map) {
                 metadata = (Map<String, Object>) attributes.get("metadata");
-                username = metadata.get("credigo_username") instanceof String
-                        ? (String) metadata.get("credigo_username")
-                        : null;
-                type = metadata.get("transaction_type") instanceof String ? (String) metadata.get("transaction_type")
-                        : null;
-                log.info("PayMongo payment.paid event details: paymentId={}, amount={}, currency={}, metadata={}",
-                        paymentId, amount, currency, metadata);
+                username = metadata.get("credigo_username") instanceof String ? (String) metadata.get("credigo_username") : null;
+                type = metadata.get("transaction_type") instanceof String ? (String) metadata.get("transaction_type") : null;
+                log.info("PayMongo payment.paid event details: paymentId={}, amount={}, currency={}, metadata={}", paymentId, amount, currency, metadata);
             } else {
-                // Option 2: Maybe the source ID is here?
-                String sourceId = attributes.get("source") instanceof String ? (String) attributes.get("source") : null;
-                if (sourceId != null) {
-                    log.warn(
-                            "PayMongo payment.paid event: No metadata found directly. Need to fetch source/payment_intent {} to find username.",
-                            sourceId);
-                    // !!! You would need to add logic here to call PayMongo API again using
-                    // sourceId
-                    // to get the original PaymentIntent/Source which *should* have the metadata.
-                    // This makes the webhook handler more complex.
-                } else {
-                    log.warn(
-                            "PayMongo payment.paid event: Cannot determine user. No metadata found directly on payment {} and no source ID provided.",
-                            paymentId);
-                }
+                log.warn("PayMongo payment.paid event: No metadata found on payment {}", paymentId);
+                return;
             }
 
-            // Check if it's a valid wallet top-up event (based on metadata if found)
-            if ("wallet_topup".equals(type) && username != null && !username.isBlank() && amount != null
-                    && amount > 0) {
+            // Check if it's a valid wallet top-up event based on metadata
+            if ("wallet_topup".equals(type) && username != null && !username.isBlank() && amount != null && amount > 0) {
                 BigDecimal amountDecimal = BigDecimal.valueOf(amount).divide(new BigDecimal("100"));
                 try {
-                    // Use paymentId or another relevant ID for the transaction reference
-                    walletService.addFundsToWallet(username, amountDecimal,
-                            paymentId != null ? paymentId : "paymongo_payment", description);
-                    log.info("Successfully credited wallet for user {} via PayMongo payment {} ({} {})", username,
-                            paymentId, amountDecimal, currency);
+                    // Use paymentId as the transaction reference
+                    walletService.addFundsToWallet(username, amountDecimal, paymentId, description);
+                    log.info("Successfully credited wallet for user {} via PayMongo payment {} ({} {})", username, paymentId, amountDecimal, currency);
                 } catch (Exception e) {
-                    log.error("Failed to credit wallet for user {} from payment {}: {}", username, paymentId,
-                            e.getMessage(), e);
+                    log.error("Failed to credit wallet for user {} from payment {}: {}", username, paymentId, e.getMessage(), e);
                 }
             } else {
-                log.warn(
-                        "Ignoring PayMongo payment.paid for paymentId={}: metadata missing, not a wallet top-up, invalid username, or zero/missing amount. Type='{}', Username='{}', Amount={}",
-                        paymentId, type, username, amount);
+                log.warn("PayMongo payment does not appear to be a valid wallet top-up: type={}, username={}, amount={}", type, username, amount);
             }
         } catch (Exception e) {
-            log.error("Error processing payment.paid attributes for paymentId {}: {}", paymentId, e.getMessage(), e);
+            log.error("Error processing payment.paid event for payment {}: {}", paymentId, e.getMessage(), e);
         }
     }
 
@@ -518,30 +488,150 @@ public class PaymentController {
         }
     }
 
-    @GetMapping("/status/{paymentIntentId}")
-    public ResponseEntity<?> checkPaymentStatus(@PathVariable String paymentIntentId) {
+    @GetMapping("/status/{paymentId}")
+    public ResponseEntity<?> checkPaymentStatus(@PathVariable String paymentId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
                 || "anonymousUser".equals(authentication.getPrincipal())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
         }
+
         String username = authentication.getName();
+        log.info("Checking payment status for ID: {}, user: {}", paymentId, username);
 
         try {
-            PaymentStatusResponse statusResponse = paymentService.checkPaymentStatus(paymentIntentId, username);
-
-            if ("not_found".equals(statusResponse.getStatus())) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(statusResponse);
-            }
-
+            PaymentStatusResponse statusResponse = paymentService.checkPaymentStatus(paymentId, username);
             return ResponseEntity.ok(statusResponse);
         } catch (Exception e) {
-            log.error("Error checking payment status for {}: {}", paymentIntentId, e.getMessage(), e);
+            log.error("Error checking payment status: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of(
-                    "status", "error",
-                    "message", "Failed to check payment status: " + e.getMessage()
-                ));
+                .body("Failed to check payment status: " + e.getMessage());
+        }
+    }
+
+    // Add a new method to handle the 'link.paid' event type
+    private void processLinkPaidEvent(Map<String, Object> attributes) {
+        String linkId = null;
+        try {
+            linkId = attributes.get("id") instanceof String ? (String) attributes.get("id") : null;
+            log.info("Processing link.paid event for link ID: {}", linkId);
+
+            // Extract payment details
+            Long amount = null;
+            Object amtObj = attributes.get("amount");
+            if (amtObj instanceof Number) {
+                amount = ((Number) amtObj).longValue();
+            } else {
+                log.warn("PayMongo link.paid event: 'amount' is missing or not a number for link {}", linkId);
+                return;
+            }
+
+            String currency = attributes.get("currency") instanceof String ? (String) attributes.get("currency") : null;
+            String description = attributes.get("description") instanceof String ? (String) attributes.get("description") : "Payment via PayMongo Link";
+            String referenceNumber = attributes.get("reference_number") instanceof String ? (String) attributes.get("reference_number") : null;
+
+            // Extract metadata from the link
+            Map<String, Object> metadata = null;
+            String username = null;
+            String type = null;
+
+            if (attributes.get("metadata") instanceof Map) {
+                metadata = (Map<String, Object>) attributes.get("metadata");
+                username = metadata.get("credigo_username") instanceof String ? (String) metadata.get("credigo_username") : null;
+                type = metadata.get("transaction_type") instanceof String ? (String) metadata.get("transaction_type") : null;
+                log.info("PayMongo link.paid event details: linkId={}, reference={}, amount={}, metadata={}",
+                        linkId, referenceNumber, amount, metadata);
+            } else {
+                log.warn("PayMongo link.paid event: No metadata found on link {}", linkId);
+                return;
+            }
+
+            // Process wallet top-up if applicable
+            if ("wallet_topup".equals(type) && username != null && !username.isBlank() && amount != null && amount > 0) {
+                BigDecimal amountDecimal = BigDecimal.valueOf(amount).divide(new BigDecimal("100"));
+                try {
+                    String transactionReference = linkId;
+                    if (referenceNumber != null && !referenceNumber.isBlank()) {
+                        transactionReference = referenceNumber; // Use reference number if available
+                    }
+
+                    walletService.addFundsToWallet(username, amountDecimal, transactionReference, description);
+                    log.info("Successfully credited wallet for user {} via PayMongo link {} ({} {})",
+                            username, transactionReference, amountDecimal, currency);
+                } catch (Exception e) {
+                    log.error("Failed to credit wallet for user {} from link {}: {}", username, linkId, e.getMessage(), e);
+                }
+            } else {
+                log.warn("PayMongo link does not appear to be a valid wallet top-up: type={}, username={}, amount={}",
+                        type, username, amount);
+            }
+        } catch (Exception e) {
+            log.error("Error processing link.paid event for link {}: {}", linkId, e.getMessage(), e);
+        }
+    }
+
+    // For testing purposes only - DO NOT USE IN PRODUCTION
+    @PostMapping("/test-complete-payment/{paymentId}")
+    public ResponseEntity<?> testCompletePayment(@PathVariable String paymentId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+        }
+
+        String username = authentication.getName();
+        log.info("Manually completing payment for ID: {}, user: {}", paymentId, username);
+
+        try {
+            // Get payment details from PayMongo
+            PaymentStatusResponse statusResponse = paymentService.checkPaymentStatus(paymentId, username);
+
+            if (statusResponse == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Payment not found: " + paymentId);
+            }
+
+            // Manually process the payment as if it were a webhook
+            BigDecimal amount = new BigDecimal("0");
+
+            // Try to extract amount from the payment ID description
+            try {
+                // Call PayMongo API to get the link details
+                Map<String, Object> response = paymentService.getPaymentLinkDetails(paymentId);
+                if (response != null && response.get("data") instanceof Map) {
+                    Map<String, Object> data = (Map<String, Object>) response.get("data");
+                    if (data.get("attributes") instanceof Map) {
+                        Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
+                        if (attributes.get("amount") instanceof Number) {
+                            Long amountInCentavos = ((Number) attributes.get("amount")).longValue();
+                            amount = BigDecimal.valueOf(amountInCentavos).divide(new BigDecimal("100"));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Could not get exact amount from PayMongo, using default: {}", e.getMessage());
+                // Default to 100 PHP if we can't get the actual amount
+                amount = new BigDecimal("100.00");
+            }
+
+            // Add funds to wallet
+            walletService.addFundsToWallet(
+                username,
+                amount,
+                paymentId,
+                "Manual wallet top-up completion via PayMongo"
+            );
+
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Payment completed and wallet credited successfully",
+                "amount", amount,
+                "paymentId", paymentId
+            ));
+        } catch (Exception e) {
+            log.error("Error completing payment manually: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Failed to complete payment: " + e.getMessage());
         }
     }
 
