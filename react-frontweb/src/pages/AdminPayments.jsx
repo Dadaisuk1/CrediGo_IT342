@@ -13,6 +13,42 @@ const AdminPayments = () => {
   const [pendingPayments, setPendingPayments] = useState([]);
   const [loadingPending, setLoadingPending] = useState(false);
 
+  // Load payment history from localStorage on component mount
+  useEffect(() => {
+    try {
+      const storedHistory = localStorage.getItem('confirmed_payments_history');
+      if (storedHistory) {
+        setPaymentHistory(JSON.parse(storedHistory));
+      }
+    } catch (error) {
+      console.error('Error loading payment history:', error);
+    }
+  }, []);
+
+  // Helper function to mark a payment as confirmed in localStorage
+  const markPaymentAsConfirmed = (paymentId, amountValue, status = 'success') => {
+    // Add to confirmed payments record in localStorage
+    const confirmedKey = 'confirmed_payment_' + paymentId;
+    localStorage.setItem(confirmedKey, 'true');
+
+    // Add to payment history
+    const newPayment = {
+      id: Date.now(),
+      paymentIntentId: paymentId,
+      amount: typeof amountValue === 'number' ? amountValue : parseFloat(amountValue),
+      timestamp: new Date().toISOString(),
+      status
+    };
+
+    const updatedHistory = [newPayment, ...paymentHistory];
+    setPaymentHistory(updatedHistory);
+
+    // Also store the complete history in localStorage
+    localStorage.setItem('confirmed_payments_history', JSON.stringify(updatedHistory));
+
+    return newPayment;
+  };
+
   // Function to fetch pending payments
   const fetchPendingPayments = useCallback(async () => {
     setLoadingPending(true);
@@ -24,17 +60,26 @@ const AdminPayments = () => {
       // Simulate API response for demo - replace with actual API in production
       // This simulates checking localStorage for any payment intents created by users
       const pendingPaymentIds = [];
+
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('payment_intent_')) {
           try {
             const data = JSON.parse(localStorage.getItem(key));
+            const paymentId = key.replace('payment_intent_', '');
+
+            // Check if this payment is already confirmed by checking localStorage
+            const confirmedKey = 'confirmed_payment_' + paymentId;
+            if (localStorage.getItem(confirmedKey) === 'true') {
+              continue; // Skip confirmed payments
+            }
+
             // Include both awaiting payments and background tracking payments
             if (data && (data.status === 'awaiting_payment_method' ||
                          data.trackingInBackground === true ||
                          data.status === 'processing')) {
               pendingPaymentIds.push({
-                id: key.replace('payment_intent_', ''),
+                id: paymentId,
                 amount: data.amount,
                 created: data.created || Date.now(),
                 username: data.username || 'Unknown',
@@ -57,7 +102,7 @@ const AdminPayments = () => {
     } finally {
       setLoadingPending(false);
     }
-  }, []);
+  }, [paymentHistory]);
 
   // Set up polling for pending payments
   useEffect(() => {
@@ -105,16 +150,9 @@ const AdminPayments = () => {
         amount: parseFloat(amount)
       });
 
-      // Add to history
-      const newPayment = {
-        id: Date.now(),
-        paymentIntentId,
-        amount: parseFloat(amount),
-        timestamp: new Date().toISOString(),
-        status: 'success'
-      };
+      // Add to history and mark as confirmed
+      const newPayment = markPaymentAsConfirmed(paymentIntentId, amount);
 
-      setPaymentHistory(prev => [newPayment, ...prev]);
       setResult({ success: true, data: response.data });
       toast.success('Payment confirmed successfully!');
 
@@ -142,16 +180,32 @@ const AdminPayments = () => {
 
     // Automatically submit after short delay to allow state update
     setTimeout(() => {
-      handleSubmit({ preventDefault: () => {} });
+      try {
+        // Mark as confirmed in localStorage
+        markPaymentAsConfirmed(payment.id, payment.amount / 100);
 
-      // Also stop polling immediately
-      localStorage.setItem('stopPolling_' + payment.id, Date.now().toString());
+        // Also attempt to confirm via API
+        confirmTestPayment({
+          paymentIntentId: payment.id,
+          amount: payment.amount / 100
+        }).catch(err => console.error('Error in API confirmation:', err));
 
-      // Broadcast the event
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: 'stopPolling_' + payment.id,
-        newValue: Date.now().toString()
-      }));
+        // Update the UI
+        setPendingPayments(prev => prev.filter(p => p.id !== payment.id));
+        toast.success('Payment confirmed successfully!');
+
+        // Also stop polling immediately
+        localStorage.setItem('stopPolling_' + payment.id, Date.now().toString());
+
+        // Broadcast the event
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'stopPolling_' + payment.id,
+          newValue: Date.now().toString()
+        }));
+      } catch (error) {
+        console.error('Error confirming payment:', error);
+        toast.error('Failed to confirm payment');
+      }
     }, 100);
   };
 
@@ -172,16 +226,9 @@ const AdminPayments = () => {
             amount: parseFloat(amount)
           });
 
-          // Add to history
-          const newPayment = {
-            id: Date.now(),
-            paymentIntentId,
-            amount: parseFloat(amount),
-            timestamp: new Date().toISOString(),
-            status: 'success (manual stop)'
-          };
+          // Mark as confirmed in localStorage
+          markPaymentAsConfirmed(paymentIntentId, amount, 'success (manual stop)');
 
-          setPaymentHistory(prev => [newPayment, ...prev]);
           setResult({
             success: true,
             data: {
@@ -189,6 +236,9 @@ const AdminPayments = () => {
               paymentIntentId
             }
           });
+
+          // Remove this payment from pending list if it exists
+          setPendingPayments(prev => prev.filter(p => p.id !== paymentIntentId));
         } catch (error) {
           console.warn('Could not confirm payment automatically when stopping polling:', error);
           // Continue with stopping the polling even if confirmation fails

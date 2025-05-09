@@ -1,3 +1,13 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import React, { useEffect, useRef, useState } from 'react';
 import { FaCog, FaShieldAlt, FaSignOutAlt } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +36,12 @@ export default function UserMenu({ username, onLogout, onSettings, walletBalance
   const formattedBalance = walletBalance !== null
     ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(walletBalance)
     : '---';
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(false);
+    setOpen(false);
+    onLogout();
+  };
 
   return (
     <div className="relative" ref={menuRef}>
@@ -92,18 +108,27 @@ export default function UserMenu({ username, onLogout, onSettings, walletBalance
         >
           <FaSignOutAlt className="mr-2" /> Logout
         </button>
-        {showLogoutConfirm && (
-          <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-30 flex items-center justify-center z-50">
-            <div className="bg-white rounded shadow-lg p-6 text-center">
-              <div className="mb-4 text-lg font-semibold">Confirm Logout</div>
-              <div className="mb-6 text-gray-600">Are you sure you want to log out?</div>
-              <div className="flex justify-center space-x-4">
-                <button className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
-                <button className="px-4 py-2 rounded bg-red-500 hover:bg-red-600 text-white font-semibold" onClick={() => { setShowLogoutConfirm(false); onLogout(); }}>Logout</button>
-              </div>
-            </div>
-          </div>
-        )}
+
+        {/* Shadcn Alert Dialog for Logout Confirmation */}
+        <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+          <AlertDialogContent className="sm:max-w-[425px]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to log out of your account?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleLogout}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Logout
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

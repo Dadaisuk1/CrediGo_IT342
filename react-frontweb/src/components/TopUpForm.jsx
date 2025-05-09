@@ -1,14 +1,15 @@
 // src/components/TopUpForm.jsx
+import { useToast } from '@/hooks/use-toast';
 import React, { useRef, useState } from 'react';
 import { FaRegWindowMinimize } from 'react-icons/fa';
 import { RiArrowGoBackLine } from 'react-icons/ri';
-import { toast } from 'react-toastify';
 import { checkPaymentStatus, createWalletTopUpIntent } from '../services/api';
 
 /**
  * Form component for PayMongo wallet top-up payment.
  */
 function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
+  const { toast } = useToast();
   const [error, setError] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [succeeded, setSucceeded] = useState(false);
@@ -70,6 +71,12 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
         // Set success state
         setSucceeded(true);
         setError(null);
+        // Show success toast
+        toast({
+          title: "Payment Successful",
+          description: "Your wallet has been topped up successfully!",
+          variant: "default",
+        });
         // Force refresh wallet balance
         if (onPaymentSuccess) onPaymentSuccess();
       }
@@ -90,6 +97,12 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
       // Set success state
       setSucceeded(true);
       setError(null);
+      // Show success toast
+      toast({
+        title: "Payment Successful",
+        description: "Your wallet has been topped up successfully!",
+        variant: "default",
+      });
       // Force refresh wallet balance
       if (onPaymentSuccess) onPaymentSuccess();
     }
@@ -98,7 +111,7 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [paymentData?.paymentIntentId, statusCheckInterval, onPaymentSuccess]);
+  }, [paymentData?.paymentIntentId, statusCheckInterval, onPaymentSuccess, toast]);
 
   // Function to validate form based on selected payment method
   const validateForm = () => {
@@ -241,6 +254,13 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
 
   // Function to cancel the payment process
   const handleCancelPayment = () => {
+    // Show cancellation toast using shadcn
+    toast({
+      title: "Payment Cancelled",
+      description: "The payment process has been cancelled",
+      variant: "destructive",
+    });
+
     // Clear polling interval
     if (statusCheckInterval) {
       clearInterval(statusCheckInterval);
@@ -261,6 +281,12 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
   };
 
   const startPollingPaymentStatus = (paymentIntentId) => {
+    // Show toast when payment status changes
+    toast({
+      title: "Processing Payment",
+      description: "Please wait while we process your payment...",
+    });
+
     // Clear any existing interval
     if (statusCheckInterval) {
       clearInterval(statusCheckInterval);
@@ -378,9 +404,10 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
       localStorage.setItem('background_payment_active', 'true');
 
       // Show a notification to the user
-      toast.info('Payment is being tracked in the background. You can check your balance later or ask an admin to confirm.', {
-        autoClose: 5000,
-        position: 'top-center'
+      toast({
+        title: "Payment Tracking",
+        description: "This payment is now being tracked in the background. You can check your balance later or ask an admin to confirm.",
+        variant: "default",
       });
 
       // Close the payment form
