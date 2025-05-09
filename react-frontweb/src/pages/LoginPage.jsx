@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import credigoLogo from '../assets/images/credigo_icon.svg';
 import AlertModal from '../components/AlertModal';
+import { API_BASE_URL } from '../config/api.config';
 import { useAuth } from '../context/AuthContext';
 
 // Google Icon component (keep as is)
@@ -20,6 +21,7 @@ function LoginPage() {
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const { login, loading, error, setError } = useAuth();
   const navigate = useNavigate();
 
@@ -31,7 +33,7 @@ function LoginPage() {
     setError(null);
 
     try {
-      const success = await login({ usernameOrEmail, password });
+      const success = await login({ usernameOrEmail, password, rememberMe });
 
       if (success) {
         setAlertModal({ open: true, title: 'Success', message: 'Login Successful!', type: 'success' });
@@ -59,7 +61,8 @@ function LoginPage() {
   };
 
   const handleGoogleSignIn = () => {
-    setAlertModal({ open: true, title: 'Info', message: 'Google Sign-In not implemented yet!', type: 'info' });
+    // Redirect to Spring Boot OAuth2 authorization endpoint
+    window.location.href = `${API_BASE_URL}/api/auth/oauth2/authorize/google`;
   };
 
   return (
@@ -138,11 +141,27 @@ function LoginPage() {
                 )}
               </button>
             </div>
-            {/* Forgot Password Link */}
-            <div className="text-right text-sm mt-2">
-              <a href="/forgot-password" className="font-medium text-credigo-button hover:text-opacity-80">
-                Forgot password?
-              </a>
+
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-credigo-button focus:ring-credigo-button/50 border-gray-600 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
+                  Remember me
+                </label>
+              </div>
+              <div className="text-sm">
+                <a href="/forgot-password" className="font-medium text-credigo-button hover:text-opacity-80">
+                  Forgot password?
+                </a>
+              </div>
             </div>
           </div>
 

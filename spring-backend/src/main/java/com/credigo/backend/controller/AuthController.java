@@ -8,6 +8,8 @@ import com.credigo.backend.entity.User;
 import com.credigo.backend.repository.UserRepository; // Import UserRepository
 import com.credigo.backend.security.jwt.JwtTokenProvider; // Import JwtTokenProvider
 import com.credigo.backend.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,22 +43,24 @@ public class AuthController {
   private final AuthenticationManager authenticationManager;
   private final JwtTokenProvider jwtTokenProvider; // Inject JwtTokenProvider
   private final UserRepository userRepository; // Inject UserRepository to get full User details
+  private final RememberMeServices rememberMeServices; // Remember Me services
 
   @Autowired
   public AuthController(UserService userService,
       AuthenticationManager authenticationManager,
-      JwtTokenProvider jwtTokenProvider, // Add to constructor
-      UserRepository userRepository) { // Add to constructor
+      JwtTokenProvider jwtTokenProvider,
+      UserRepository userRepository,
+      RememberMeServices rememberMeServices) {
     this.userService = userService;
     this.authenticationManager = authenticationManager;
-    this.jwtTokenProvider = jwtTokenProvider; // Initialize
-    this.userRepository = userRepository; // Initialize
+    this.jwtTokenProvider = jwtTokenProvider;
+    this.userRepository = userRepository;
+    this.rememberMeServices = rememberMeServices;
   }
 
   // --- Registration Endpoint (Keep as is) ---
   @PostMapping("/register")
   public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegistrationRequest registrationRequest) {
-    // ... (existing registration code) ...
     log.info("Received registration request for username: {}", registrationRequest.getUsername());
     try {
       User newUser = userService.registerUser(registrationRequest);
@@ -72,7 +77,11 @@ public class AuthController {
 
   // --- Updated Login Endpoint ---
   @PostMapping("/login")
-  public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+  public ResponseEntity<?> authenticateUser(
+        @Valid @RequestBody LoginRequest loginRequest,
+        HttpServletRequest request,
+        HttpServletResponse response) {
+
     log.info("Received login request for user: {}", loginRequest.getUsernameOrEmail());
     try {
       Authentication authentication = authenticationManager.authenticate(
@@ -82,6 +91,12 @@ public class AuthController {
 
       SecurityContextHolder.getContext().setAuthentication(authentication);
       log.info("User '{}' authenticated successfully.", loginRequest.getUsernameOrEmail());
+
+      // Handle Remember Me if requested
+      if (loginRequest.getRememberMe() != null && loginRequest.getRememberMe()) {
+        log.info("Remember Me requested for user: {}", loginRequest.getUsernameOrEmail());
+        rememberMeServices.loginSuccess(request, response, authentication);
+      }
 
       // *** Generate the JWT Token ***
       String jwt = jwtTokenProvider.generateToken(authentication);

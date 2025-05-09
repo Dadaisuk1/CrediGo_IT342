@@ -15,4 +15,6 @@ public class LoginRequest {
     private String usernameOrEmail; // neither of both
     @NotBlank(message = "Password is required")
     private String password;
+
+    private Boolean rememberMe = false;
 }

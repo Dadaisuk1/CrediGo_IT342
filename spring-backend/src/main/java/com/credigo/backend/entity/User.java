@@ -30,8 +30,18 @@ public class User {
   @Column(nullable = false, unique = true, length = 255)
   private String email;
 
-  @Column(name = "password_hash", nullable = false, length = 255)
-  private String passwordHash; // Hashed password
+  @Column(name = "password_hash", nullable = true, length = 255)
+  private String passwordHash; // Now optional for OAuth users
+
+  // OAuth2 related fields
+  @Column(name = "provider")
+  private String provider; // google, facebook, etc.
+
+  @Column(name = "provider_id")
+  private String providerId;
+
+  @Column(name = "image_url")
+  private String imageUrl;
 
   // Optional Fields
   @Column(name = "phone_number", length = 20)

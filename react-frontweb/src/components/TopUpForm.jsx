@@ -170,8 +170,11 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
         paymentData.mobileNumber = mobileNumber;
       }
 
+      console.log("Sending payment data:", paymentData);
+
       // Call backend to create a PayMongo payment intent
       const response = await createWalletTopUpIntent(paymentData);
+      console.log("Payment API response:", response);
 
       const data = response.data;
       setPaymentData(data);
@@ -210,8 +213,27 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
       }
     } catch (err) {
       console.error('Payment creation error:', err);
-      setError(err.response?.data?.message || 'Failed to initiate payment. Please try again.');
-      if (onPaymentError) onPaymentError(err.response?.data?.message || 'Payment failed');
+
+      // Improved error handling
+      let errorMessage = 'Failed to initiate payment. Please try again.';
+
+      // Check if there's a response with data
+      if (err.response && err.response.data) {
+        // If the response data is a string, use it directly
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        }
+        // If it has a message property, use that
+        else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        }
+      } else if (err.message) {
+        // Use the error message if available
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
+      if (onPaymentError) onPaymentError(errorMessage);
     } finally {
       setProcessing(false);
     }
