@@ -138,9 +138,9 @@
                         android:layout_width="match_parent"
                         android:layout_height="90dp"
                         android:padding="8dp"
-                        android:src="@drawable/logo_visa2"
+                        android:src="@drawable/ic_cards"
                         android:scaleType="fitCenter"
-                        android:contentDescription="Visa"/>
+                        android:contentDescription="Credit Debit"/>
                 </LinearLayout>
 
                 <!-- Mastercard Option -->
@@ -159,9 +159,9 @@
                         android:layout_width="match_parent"
                         android:layout_height="90dp"
                         android:padding="8dp"
-                        android:src="@drawable/logo_mastercard"
+                        android:src="@drawable/logo_grabpay"
                         android:scaleType="fitCenter"
-                        android:contentDescription="Mastercard"/>
+                        android:contentDescription="Grab Pay"/>
                 </LinearLayout>
             </GridLayout>
 
@@ -344,5 +344,44 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Processing Layout Overlay -->
+    <FrameLayout
+        android:id="@+id/processing_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/item_background"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <ProgressBar
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center_horizontal"
+                android:indeterminate="true" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="16dp"
+                android:text="Processing payment..."
+                android:textColor="@color/black"
+                android:textSize="16sp" />
+        </LinearLayout>
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

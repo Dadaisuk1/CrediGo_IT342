@@ -87,6 +87,17 @@
         <activity
             android:name=".DepositHistoryActivity"
             android:exported="false" />
+        <activity
+            android:name=".PaymentWebViewActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="credigo" android:host="payment" android:pathPrefix="/success" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

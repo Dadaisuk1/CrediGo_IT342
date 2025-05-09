@@ -26,4 +26,11 @@ interface WalletApi {
      */
     @POST("api/wallet/create-payment-intent")
     suspend fun createWalletTopUpIntent(@Body topUpRequest: WalletTopUpRequest): Response<Map<String, String>>
+
+    /**
+     * Direct topup method that bypasses PayMongo (for testing purposes)
+     * This is used as a fallback when PayMongo integration has issues
+     */
+    @POST("api/wallet/topup")
+    suspend fun topupWallet(@Body topUpRequest: WalletTopUpRequest): Response<Wallet>
 }

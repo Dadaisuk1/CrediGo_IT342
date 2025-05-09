@@ -156,7 +156,7 @@ class CredigoApp : Application() {
      * 
      * @return True if authentication is valid, false otherwise
      */
-    fun refreshAuthentication(): Boolean {
+    suspend fun refreshAuthentication(): Boolean {
         Log.d(TAG, "Refreshing authentication")
         
         // Check if we have a valid token
@@ -164,6 +164,19 @@ class CredigoApp : Application() {
         if (token == null) {
             Log.w(TAG, "No valid token found during refresh")
             return false
+        }
+        
+        // Check if token is expired (simple check, may need JWT parsing for better accuracy)
+        val isTokenValid = isTokenValid(token)
+        if (!isTokenValid) {
+            Log.w(TAG, "Token appears to be expired, attempting to refresh")
+            
+            // Try to refresh the token with the backend
+            val success = attemptTokenRefresh()
+            if (!success) {
+                Log.e(TAG, "Failed to refresh token")
+                return false
+            }
         }
         
         // Re-initialize API client with the current token
@@ -184,6 +197,55 @@ class CredigoApp : Application() {
         
         Log.d(TAG, "Authentication refreshed successfully")
         return true
+    }
+    
+    /**
+     * Basic check to see if token might be valid
+     * Note: This is a very simple check - in a real app, you would parse the JWT
+     * and check the expiration timestamp
+     */
+    private fun isTokenValid(token: String): Boolean {
+        if (token.isEmpty()) return false
+        
+        // Try to parse as JWT - most tokens are in format xxx.yyy.zzz
+        val parts = token.split(".")
+        return parts.size == 3 && parts.all { it.isNotEmpty() }
+    }
+    
+    /**
+     * Attempt to refresh the authentication token with the backend
+     * Returns true if successful, false otherwise
+     */
+    private suspend fun attemptTokenRefresh(): Boolean {
+        try {
+            Log.d(TAG, "Attempting to refresh token with backend")
+            
+            // Make a call to the backend refresh token endpoint
+            // This is a simplified example - in a real app, you would need
+            // to implement this with your actual refresh token API
+            val response = RetrofitClient.authService.refreshToken()
+            
+            if (response.isSuccessful) {
+                val newToken = response.body()?.token
+                if (newToken != null) {
+                    Log.d(TAG, "Token refresh successful")
+                    
+                    // Save the new token
+                    sessionManager.saveAuthToken(newToken)
+                    
+                    // Re-initialize services with new token
+                    RetrofitClient.initializeAuthenticatedRetrofit(sessionManager)
+                    
+                    return true
+                }
+            }
+            
+            Log.e(TAG, "Token refresh failed, server response: ${response.code()}")
+            return false
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception during token refresh: ${e.message}", e)
+            return false
+        }
     }
     
     /**

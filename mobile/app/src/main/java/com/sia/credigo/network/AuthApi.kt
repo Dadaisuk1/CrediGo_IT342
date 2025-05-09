@@ -4,6 +4,7 @@ import com.sia.credigo.model.LoginRequest
 import com.sia.credigo.model.LoginResponse
 import com.sia.credigo.model.UserResponse
 import com.sia.credigo.model.ProfileUpdateRequest
+import com.sia.credigo.model.TokenResponse
 import com.sia.credigo.network.models.RegisterRequest
 import retrofit2.Response
 import retrofit2.http.Body
@@ -32,4 +33,12 @@ interface AuthApi {
     
     @GET("api/auth/findByName/{username}")
     suspend fun findByUsername(@Path("username") username: String): Response<UserResponse>
+    
+    /**
+     * Refresh an expired authentication token
+     * 
+     * Note: The token is automatically included in the Authorization header by the AuthInterceptor
+     */
+    @POST("api/auth/refresh")
+    suspend fun refreshToken(): Response<TokenResponse>
 }

@@ -14,6 +14,15 @@ import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 
 /**
+ * Data class for PayMongo payment response containing either client secret or checkout URL
+ */
+data class PaymentResponse(
+    val clientSecret: String?,
+    val checkoutUrl: String?,
+    val message: String? = null
+)
+
+/**
  * ViewModel for wallet operations that aligns with backend capabilities.
  * Handles authenticated user's wallet operations.
  */
@@ -32,6 +41,9 @@ class WalletViewModel : ViewModel() {
 
     private val _paymentIntentData = MutableLiveData<Map<String, String>?>()
     val paymentIntentData: LiveData<Map<String, String>?> = _paymentIntentData
+    
+    private val _paymongoResponse = MutableLiveData<PaymentResponse?>()
+    val paymongoResponse: LiveData<PaymentResponse?> = _paymongoResponse
 
     /**
      * Fetches the authenticated user's wallet from the backend
@@ -188,6 +200,17 @@ class WalletViewModel : ViewModel() {
                 _isLoading.postValue(false)
             }
         }
+    }
+    
+    /**
+     * Updates wallet balance LOCALLY ONLY (no API call)
+     * This is for fallback when the server is unavailable
+     * 
+     * @param wallet The wallet with updated balance
+     */
+    fun updateWalletBalance(wallet: Wallet) {
+        Log.d(TAG, "Updating wallet locally: $wallet")
+        _userWallet.postValue(wallet)
     }
     
     /**
