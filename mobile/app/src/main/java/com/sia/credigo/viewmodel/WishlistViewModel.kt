@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import com.sia.credigo.model.WishlistItem
 import com.sia.credigo.network.RetrofitClient
 import com.sia.credigo.network.models.BaseResponse
+import com.sia.credigo.app.CredigoApp
 import kotlinx.coroutines.launch
 import retrofit2.Response
 
@@ -26,6 +27,19 @@ class WishlistViewModel : ViewModel() {
 
     // Current user ID for wishlist operations
     private var currentUserId: Int? = null
+
+    init {
+        // Try to get the current user from the application to ensure it's always set
+        try {
+            val app = CredigoApp.instance
+            if (app.isLoggedIn && app.loggedInuser != null) {
+                currentUserId = app.loggedInuser?.id
+                Log.d(TAG, "Initialized with user ID from app: $currentUserId")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing from app: ${e.message}")
+        }
+    }
 
     fun setCurrentUser(userId: Int) {
         if (userId <= 0) {
@@ -63,6 +77,9 @@ class WishlistViewModel : ViewModel() {
     }
 
     fun addToWishlist(productId: Int) {
+        // Try to get user ID from app if not set explicitly
+        ensureUserIdIsSet()
+        
         // Always double-check that we have a current user
         val userId = currentUserId ?: run {
             Log.e(TAG, "Cannot add to wishlist: No current user set")
@@ -97,6 +114,9 @@ class WishlistViewModel : ViewModel() {
     }
 
     fun removeFromWishlist(productId: Int) {
+        // Try to get user ID from app if not set explicitly
+        ensureUserIdIsSet()
+        
         // Always double-check that we have a current user
         val userId = currentUserId ?: run {
             Log.e(TAG, "Cannot remove from wishlist: No current user set")
@@ -136,5 +156,20 @@ class WishlistViewModel : ViewModel() {
     // Helper method to get wishlist item details for a product
     fun getWishlistItemForProduct(productId: Int): WishlistItem? {
         return _wishlistItems.value?.find { it.productId == productId }
+    }
+    
+    // Helper method to ensure user ID is set
+    private fun ensureUserIdIsSet() {
+        if (currentUserId == null || currentUserId!! <= 0) {
+            try {
+                val app = CredigoApp.instance
+                if (app.isLoggedIn && app.loggedInuser != null) {
+                    currentUserId = app.loggedInuser?.id
+                    Log.d(TAG, "Retrieved user ID from app: $currentUserId")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error retrieving user from app: ${e.message}")
+            }
+        }
     }
 }

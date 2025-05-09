@@ -24,6 +24,7 @@ import com.sia.credigo.model.Mail
 import com.sia.credigo.model.Wallet
 import com.sia.credigo.utils.DialogUtils
 import com.sia.credigo.utils.SortButtonsHandler
+import com.sia.credigo.utils.TransactionProcessor
 import com.sia.credigo.viewmodel.*
 import java.math.BigDecimal
 import kotlinx.coroutines.delay
@@ -40,6 +41,7 @@ class ProductsListActivity : AppCompatActivity() {
     private lateinit var transactionViewModel: TransactionViewModel
     private lateinit var mailViewModel: MailViewModel
     private lateinit var walletViewModel: WalletViewModel
+    private lateinit var categoryViewModel: PlatformViewModel
     private lateinit var sortButtonsHandler: SortButtonsHandler
 
     private var currentWallet: Wallet? = null
@@ -73,6 +75,7 @@ class ProductsListActivity : AppCompatActivity() {
         transactionViewModel = ViewModelProvider(this).get(TransactionViewModel::class.java)
         mailViewModel = ViewModelProvider(this).get(MailViewModel::class.java)
         walletViewModel = ViewModelProvider(this).get(WalletViewModel::class.java)
+        categoryViewModel = ViewModelProvider(this).get(PlatformViewModel::class.java)
 
         // Get user ID and category details from intent
         currentUserId = intent.getLongExtra("USER_ID", -1)
@@ -320,6 +323,17 @@ class ProductsListActivity : AppCompatActivity() {
         
         // Refresh wallet data
         walletViewModel.fetchMyWallet()
+        
+        // Refresh wishlist data with correct user ID
+        val app = application as? CredigoApp
+        if (app?.loggedInuser != null && currentUserId <= 0) {
+            // Update currentUserId if it wasn't properly set
+            currentUserId = app.loggedInuser!!.id.toLong()
+            wishlistViewModel.setCurrentUser(currentUserId.toInt())
+        } else {
+            // Just refresh the wishlist
+            wishlistViewModel.loadUserWishlist()
+        }
     }
 
     private fun setupSortButtons() {
@@ -455,70 +469,11 @@ class ProductsListActivity : AppCompatActivity() {
         selectedProduct?.let { product ->
             val wallet = currentWallet
             if (wallet != null && wallet.balance >= product.price) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        // Create transaction
-                        val transaction = Transaction(
-                            userid = currentUserId,
-                            type = product.name,
-                            amount = product.price.toDouble(),
-                            timestamp = System.currentTimeMillis(),
-                            transactionType = TransactionType.PURCHASE
-                        )
-
-                        // Insert transaction
-                        val transactionId = withContext(Dispatchers.IO) {
-                            transactionViewModel.createTransaction(transaction)
-                        }
-
-                        // Update wallet balance
-                        val newBalance = wallet.balance.subtract(product.price)
-                        // Note: This would normally use the proper API method in production
-                        // This is a temporary fix for compatibility
-                        withContext(Dispatchers.IO) {
-                            walletViewModel.updateWalletBalance(wallet.id.toLong(), newBalance.toDouble())
-                        }
-
-                        // Get platform name
-                        val platform = withContext(Dispatchers.IO) {
-                            productViewModel.getPlatformById(product.platformId)
-                        }
-                        val platformName = platform?.name ?: "Unknown"
-
-                        // Generate random code
-                        val code = generateRandomCode()
-
-                        // Create mail
-                        val mail = Mail(
-                            userid = currentUserId,
-                            subject = "Purchase of ${platformName}'s ${product.name}",
-                            message = """Hi there,
-Thanks for your recent purchase of ${product.name} from ${platformName}. We hope you enjoy your experience!
-
-Heres the code for your game:
-Code: ${code}
-
-Use this code to top up your account!
-
-Best regards,
-— The Credigo Team""",
-                            timestamp = System.currentTimeMillis(),
-                            isRead = false
-                        )
-                        withContext(Dispatchers.IO) {
-                            mailViewModel.createMail(mail)
-                        }
-
-                        runOnUiThread {
-                            confirmationPanel.visibility = View.GONE
-                            Toast.makeText(this@ProductsListActivity, "Purchase successful!", Toast.LENGTH_SHORT).show()
-                        }
-                    } catch (e: Exception) {
-                        runOnUiThread {
-                            Toast.makeText(this@ProductsListActivity, "Error processing purchase", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
+                // Show loading state
+                findViewById<View>(R.id.progress_bar)?.visibility = View.VISIBLE
+                
+                // Use the TransactionProcessor for consistent purchase flow
+                processPurchase(product, wallet)
             } else {
                 Toast.makeText(this, "Insufficient balance", Toast.LENGTH_SHORT).show()
             }
@@ -526,79 +481,45 @@ Best regards,
     }
 
     private fun processPurchase(product: Product, wallet: Wallet) {
-        CoroutineScope(Dispatchers.Main).launch {
-            try {
-                Toast.makeText(this@ProductsListActivity, "Processing purchase...", Toast.LENGTH_SHORT).show()
-                
-                // 1. Create purchase transaction
-                val purchaseTransaction = Transaction(
-                    userid = currentUserId,
-                    type = product.name,
-                    amount = product.price.toDouble(),
-                    timestamp = System.currentTimeMillis(),
-                    transactionType = TransactionType.PURCHASE
-                )
-                
-                // 2. Create the transaction in the backend (using ViewModel that handles IO threading)
-                transactionViewModel.createTransaction(purchaseTransaction)
-                
-                // 3. Get platform/category name for the receipt
-                val platform = withContext(Dispatchers.IO) {
-                    productViewModel.getPlatformById(product.platformId)
-                }
-                val platformName = platform?.name ?: "Unknown"
-                
-                // 4. Generate random code for the game
-                val code = generateRandomCode()
-                
-                // 5. Create mail with purchase receipt
-                val mail = Mail(
-                    userid = currentUserId,
-                    subject = "Purchase of ${platformName}'s ${product.name}",
-                    message = """Hi there,
-Thanks for your recent purchase of ${product.name} from ${platformName}. We hope you enjoy your experience!
-
-Here's the code for your game:
-Code: ${code}
-
-Use this code to top up your account!
-
-Best regards,
-— The CrediGo Team""",
-                    isRead = false
-                )
-                
-                // 6. Save the mail (using IO)
-                withContext(Dispatchers.IO) {
-                    mailViewModel.createMail(mail)
-                }
-                
-                // 7. Wait briefly for transaction to process
-                withContext(Dispatchers.IO) {
-                    delay(1000)
-                }
-                
-                // 8. Refresh wallet to get updated balance (on main thread)
-                WalletManager.refreshWallet()
-                
-                // 9. UI updates (already on main thread)
+        // Show loading state
+        val progressBar = findViewById<View>(R.id.progress_bar)
+        progressBar?.visibility = View.VISIBLE
+        
+        // Use the TransactionProcessor
+        TransactionProcessor.processPurchase(
+            lifecycleOwner = this,
+            context = this,
+            product = product,
+            userId = currentUserId,
+            transactionViewModel = transactionViewModel,
+            mailViewModel = mailViewModel,
+            platformViewModel = categoryViewModel,
+            onSuccess = {
+                // UI updates on success
                 confirmationPanel.visibility = View.GONE
+                progressBar?.visibility = View.GONE
                 
-                // Show success message
-                Toast.makeText(
-                    this@ProductsListActivity, 
-                    "Purchase successful! Check your mail for the code.", 
-                    Toast.LENGTH_SHORT
-                ).show()
+                // Reset selected product
+                selectedProduct = null
                 
-            } catch (e: Exception) {
-                Log.e("ProductsListActivity", "Purchase error: ${e.message}", e)
-                Toast.makeText(
-                    this@ProductsListActivity,
-                    "Error processing purchase: ${e.localizedMessage}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                if (wishlistedProducts.contains(product.id)) {
+                    // Remove from wishlist if it was there
+                    wishlistViewModel.removeFromWishlist(product.id)
+                    wishlistedProducts.remove(product.id)
+                    (recyclerView.adapter as? ProductAdapter)?.updateWishlistState(product)
+                }
+                
+                // Update adapter to refresh the UI
+                (recyclerView.adapter as? ProductAdapter)?.apply {
+                    setSelectedProduct(null)
+                    notifyDataSetChanged()
+                }
+            },
+            onError = { errorMessage ->
+                // UI updates on error
+                progressBar?.visibility = View.GONE
+                Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show()
             }
-        }
+        )
     }
 }

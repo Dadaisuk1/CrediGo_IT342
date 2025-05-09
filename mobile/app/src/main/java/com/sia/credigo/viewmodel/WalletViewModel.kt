@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sia.credigo.model.PaymentResponse
 import com.sia.credigo.model.Wallet
 import com.sia.credigo.model.WalletTopUpRequest
 import com.sia.credigo.network.RetrofitClient
@@ -32,6 +33,10 @@ class WalletViewModel : ViewModel() {
 
     private val _paymentIntentData = MutableLiveData<Map<String, String>?>()
     val paymentIntentData: LiveData<Map<String, String>?> = _paymentIntentData
+    
+    // Add the missing _paymongoResponse LiveData
+    private val _paymongoResponse = MutableLiveData<PaymentResponse?>()
+    val paymongoResponse: LiveData<PaymentResponse?> = _paymongoResponse
 
     /**
      * Fetches the authenticated user's wallet from the backend
@@ -218,7 +223,7 @@ class WalletViewModel : ViewModel() {
                     walletService.topupWallet(request)
                 }
                 
-                if (response.isSuccessful) {
+                if (response.isSuccessful && response.body() != null) {
                     val updatedWallet = response.body()
                     Log.d(TAG, "Direct topup successful: $updatedWallet")
                     _userWallet.postValue(updatedWallet)
@@ -244,7 +249,7 @@ class WalletViewModel : ViewModel() {
                         400 -> "Invalid request. Check amount and try again. Details: $errorBody"
                         404 -> "Direct topup API endpoint not found (code 404)."
                         500, 502, 503, 504 -> "Server error (code $errorCode). Please try again later."
-                        else -> "Error: ${response.code()} - ${response.message()}"
+                        else -> "Error: $errorCode - ${response.message()}"
                     }
                     _errorMessage.postValue(errorMsg)
                     Log.e(TAG, "Failed to perform direct topup: $errorMsg")
@@ -257,5 +262,16 @@ class WalletViewModel : ViewModel() {
                 _isLoading.postValue(false)
             }
         }
+    }
+
+    /**
+     * Updates wallet balance LOCALLY ONLY (no API call)
+     * This is for fallback when the server is unavailable
+     * 
+     * @param wallet The wallet with updated balance
+     */
+    fun updateWalletBalance(wallet: Wallet) {
+        Log.d(TAG, "Updating wallet locally: $wallet")
+        _userWallet.postValue(wallet)
     }
 } 

@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.util.Log
 import kotlinx.coroutines.delay
+import com.sia.credigo.utils.TransactionProcessor
 
 class WishlistActivity : AppCompatActivity() {
     companion object {
@@ -222,97 +223,43 @@ class WishlistActivity : AppCompatActivity() {
     }
 
     private fun processPurchase(product: Product, wallet: Wallet) {
-        CoroutineScope(Dispatchers.Main).launch {
-            try {
-                Toast.makeText(this@WishlistActivity, "Processing purchase...", Toast.LENGTH_SHORT).show()
-                
-                // 1. Create purchase transaction
-                val purchaseTransaction = Transaction(
-                    userid = currentUserId,
-                    type = product.name,
-                    amount = product.price.toDouble(),
-                    timestamp = System.currentTimeMillis(),
-                    transactionType = TransactionType.PURCHASE
-                )
-                
-                // 2. Create the transaction in the backend (using ViewModel that handles IO threading)
-                transactionViewModel.createTransaction(purchaseTransaction)
-                
-                // 3. Get platform name for receipt
-                val platformViewModel = ViewModelProvider(this@WishlistActivity).get(PlatformViewModel::class.java)
-                val platform = withContext(Dispatchers.IO) {
-                    platformViewModel.getPlatformById(product.platformId)
-                }
-                val platformName = platform?.name ?: "Unknown"
-                
-                // 4. Generate random code for the game
-                val code = generateRandomCode()
-                
-                // 5. Create mail with purchase receipt
-                val mail = Mail(
-                    userid = currentUserId,
-                    subject = "Purchase of ${platformName}'s ${product.name}",
-                    message = """Hi there,
-Thanks for your recent purchase of ${product.name} from ${platformName}. We hope you enjoy your experience!
-
-Here's the code for your game:
-Code: ${code}
-
-Use this code to top up your account!
-
-Best regards,
-— The CrediGo Team""",
-                    isRead = false
-                )
-                
-                // 6. Save the mail (using IO)
-                withContext(Dispatchers.IO) {
-                    mailViewModel.createMail(mail)
-                }
-                
-                // 7. Wait briefly for transaction to process
-                withContext(Dispatchers.IO) {
-                    delay(1000)
-                }
-                
-                // 8. Refresh wallet to get updated balance (on main thread)
-                WalletManager.refreshWallet()
-                
-                // 9. UI updates (already on main thread)
+        // Show loading state
+        val progressBar = findViewById<View>(R.id.progress_bar) ?: View(this).apply { 
+            visibility = View.GONE 
+        }
+        progressBar.visibility = View.VISIBLE
+        
+        // Use the TransactionProcessor
+        TransactionProcessor.processPurchase(
+            lifecycleOwner = this,
+            context = this,
+            product = product,
+            userId = currentUserId,
+            transactionViewModel = transactionViewModel,
+            mailViewModel = mailViewModel,
+            platformViewModel = ViewModelProvider(this).get(PlatformViewModel::class.java),
+            onSuccess = {
+                // UI updates on success
                 hideConfirmationPanel()
+                progressBar.visibility = View.GONE
                 
-                // Show success message
-                Toast.makeText(
-                    this@WishlistActivity, 
-                    "Purchase successful! Check your mail for the code.", 
-                    Toast.LENGTH_SHORT
-                ).show()
-                
-                // Optional: Remove item from wishlist after purchase
+                // Remove from wishlist after purchase
                 wishlistViewModel.removeFromWishlist(product.id)
                 wishlistedProducts.remove(product.id)
                 
-            } catch (e: Exception) {
-                Log.e("WishlistActivity", "Purchase error: ${e.message}", e)
-                Toast.makeText(
-                    this@WishlistActivity,
-                    "Error processing purchase: ${e.localizedMessage}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                // Reset selected product
+                selectedProduct = null
+                
+                // Update UI to reflect removal
+                val currentProducts = productViewModel.products.value ?: emptyList()
+                updateLikedProducts(currentProducts)
+            },
+            onError = { errorMessage ->
+                // UI updates on error
+                progressBar.visibility = View.GONE
+                Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-
-    private fun generateRandomCode(): String {
-        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        val random = java.util.Random()
-        val firstPart = (1..3)
-            .map { chars[random.nextInt(chars.length)] }
-            .joinToString("")
-        val secondPart = (1..3)
-            .map { chars[random.nextInt(chars.length)] }
-            .joinToString("")
-        return "$firstPart-$secondPart"
+        )
     }
 
     private fun toggleWishlist(product: Product) {
@@ -372,5 +319,16 @@ Best regards,
         
         // Refresh wallet data
         walletViewModel.fetchMyWallet()
+        
+        // Refresh wishlist data with correct user ID
+        val app = application as? CredigoApp
+        if (app?.loggedInuser != null && currentUserId <= 0) {
+            // Update currentUserId if it wasn't properly set
+            currentUserId = app.loggedInuser!!.id.toLong()
+            wishlistViewModel.setCurrentUser(currentUserId.toInt())
+        } else {
+            // Just refresh the wishlist
+            wishlistViewModel.loadUserWishlist()
+        }
     }
 }

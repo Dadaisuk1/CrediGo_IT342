@@ -1,7 +1,9 @@
 package com.sia.credigo
 
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -18,9 +20,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.util.Log
 
 class TransactionDetails : AppCompatActivity() {
     companion object {
+        private const val TAG = "TransactionDetails"
         private const val MAIL_LIST_REQUEST_CODE = 100
     }
     private lateinit var transactionViewModel: TransactionViewModel
@@ -34,6 +38,8 @@ class TransactionDetails : AppCompatActivity() {
     private lateinit var transactionIdView: TextView
     private lateinit var categoryView: TextView
     private lateinit var dateView: TextView
+    private var statusView: TextView? = null
+    private lateinit var progressBar: ProgressBar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,11 +48,6 @@ class TransactionDetails : AppCompatActivity() {
         // Set header title
         val headerTitle = findViewById<TextView>(R.id.tv_header_title)
         headerTitle.text = "Transaction Details"
-
-        // Set up navbar
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.navbar_container, NavbarFragment())
-            .commit()
 
         // Initialize ViewModels
         transactionViewModel = ViewModelProvider(this).get(TransactionViewModel::class.java)
@@ -60,64 +61,23 @@ class TransactionDetails : AppCompatActivity() {
         transactionIdView = findViewById(R.id.tv_transaction_id_value)
         categoryView = findViewById(R.id.tv_category_value)
         dateView = findViewById(R.id.tv_date_value)
+        
+        // Optional views that might not exist in the layout
+        progressBar = findViewById<ProgressBar>(R.id.progress_bar) ?: ProgressBar(this).apply { visibility = View.GONE }
+        
+        progressBar.visibility = View.VISIBLE
 
         // Get transaction ID from intent
         val transactionId = intent.getLongExtra("TRANSACTION_ID", -1)
         if (transactionId != -1L) {
-            CoroutineScope(Dispatchers.Main).launch {
-                try {
-                    // Get transaction details on IO thread
-                    val transaction = withContext(Dispatchers.IO) {
-                        transactionViewModel.getTransactionById(transactionId)
-                    }
-
-                    if (transaction != null) {
-                        // Set initial transaction details on Main thread
-                        productNameView.text = transaction.type
-                        priceView.text = "₱${String.format("%.2f", transaction.amount)}"
-                        transactionIdView.text = transaction.transaction_id.toString()
-
-                        // Format date
-                        val dateFormat = SimpleDateFormat("MM/dd/yy HH:mm", Locale.getDefault())
-                        dateView.text = dateFormat.format(Date(transaction.timestamp))
-
-                        // Find product by name and get its category
-                        try {
-                            val product = withContext(Dispatchers.IO) {
-                                productViewModel.getProductByName(transaction.type)
-                            }
-
-                            if (product != null) {
-                                // Get category name
-                                val category = withContext(Dispatchers.IO) {
-                                    categoryViewModel.getPlatformById(product.platformId)
-                                }
-                                categoryView.text = category?.name ?: "Unknown Category"
-                            } else {
-                                // Try to parse category from transaction type
-                                val parts = transaction.type.split(" - ")
-                                if (parts.size > 1) {
-                                    productNameView.text = parts[0]
-                                    categoryView.text = parts[1]
-                                } else {
-                                    categoryView.text = "Unknown Category"
-                                }
-                            }
-                        } catch (e: Exception) {
-                            categoryView.text = "Unknown Category"
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Handle error loading transaction
-                    Toast.makeText(
-                        this@TransactionDetails,
-                        "Error loading transaction details",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
+            loadTransactionDetails(transactionId)
+        } else {
+            // No transaction ID provided
+            Toast.makeText(this, "Transaction ID not found", Toast.LENGTH_SHORT).show()
+            progressBar.visibility = View.GONE
         }
-        // Set header title and back button
+        
+        // Set back button
         findViewById<ImageView>(R.id.iv_back).setOnClickListener { onBackPressed() }
 
         // Set up navbar fragment with CredigoApp instance
@@ -130,5 +90,109 @@ class TransactionDetails : AppCompatActivity() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.navbar_container, navbarFragment)
             .commit()
+    }
+    
+    private fun loadTransactionDetails(transactionId: Long) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                progressBar.visibility = View.VISIBLE
+                
+                // First check if we have this transaction in the history list
+                val cachedTransaction = transactionViewModel.transactionHistory.value?.find { 
+                    it.transactionId.toLong() == transactionId 
+                }
+                
+                if (cachedTransaction != null) {
+                    // Use the transaction from the history list
+                    displayTransactionResponse(cachedTransaction)
+                } else {
+                    // Get transaction details on IO thread
+                    val transaction = withContext(Dispatchers.IO) {
+                        transactionViewModel.getTransactionById(transactionId)
+                    }
+
+                    if (transaction != null) {
+                        // Display transaction details
+                        displayTransaction(transaction)
+                    } else {
+                        Toast.makeText(
+                            this@TransactionDetails,
+                            "Transaction not found",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading transaction", e)
+                Toast.makeText(
+                    this@TransactionDetails,
+                    "Error loading transaction details: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } finally {
+                progressBar.visibility = View.GONE
+            }
+        }
+    }
+    
+    private fun displayTransactionResponse(transactionResponse: com.sia.credigo.model.TransactionResponse) {
+        // Set product name
+        productNameView.text = transactionResponse.productName
+        
+        // Set price with formatting
+        val formattedPrice = String.format("₱%.2f", transactionResponse.totalAmount)
+        priceView.text = formattedPrice
+        
+        // Set transaction ID
+        transactionIdView.text = transactionResponse.transactionId.toString()
+        
+        // Format date
+        try {
+            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+            val displayFormat = SimpleDateFormat("MM/dd/yy HH:mm", Locale.getDefault())
+            val date = isoFormat.parse(transactionResponse.transactionTimestamp)
+            dateView.text = if (date != null) displayFormat.format(date) else transactionResponse.transactionTimestamp
+        } catch (e: Exception) {
+            dateView.text = transactionResponse.transactionTimestamp
+        }
+        
+        // Set category (platform name if available)
+        categoryView.text = "Game Purchase" // Default
+        
+        // Get more platform details if possible 
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val platform = withContext(Dispatchers.IO) {
+                    categoryViewModel.getPlatformById(transactionResponse.productId)
+                }
+                if (platform != null) {
+                    categoryView.text = platform.name
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching platform details", e)
+            }
+        }
+    }
+    
+    private fun displayTransaction(transaction: com.sia.credigo.model.Transaction) {
+        // Set product name - parse from type if needed
+        val parts = transaction.type.split(" - ")
+        if (parts.size > 1) {
+            productNameView.text = parts[0]
+            categoryView.text = parts[1]
+        } else {
+            productNameView.text = transaction.type
+            categoryView.text = "Game Purchase"
+        }
+        
+        // Set price with formatting
+        priceView.text = "₱${String.format("%.2f", transaction.amount)}"
+        
+        // Set transaction ID
+        transactionIdView.text = transaction.transaction_id.toString()
+        
+        // Format date
+        val dateFormat = SimpleDateFormat("MM/dd/yy HH:mm", Locale.getDefault())
+        dateView.text = dateFormat.format(Date(transaction.timestamp))
     }
 }
