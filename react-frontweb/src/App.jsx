@@ -17,6 +17,7 @@ const AboutPage = lazy(() => import('./pages/AboutPage'));
 const PaymentPage = lazy(() => import('./pages/PaymentPage'));
 const NotAuthorized = lazy(() => import('./pages/NotAuthorized'));
 const Page404 = lazy(() => import('./pages/Page404'));
+const OAuth2RedirectHandler = lazy(() => import('./pages/OAuth2RedirectHandler'));
 
 // User Pages
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -51,16 +52,16 @@ function App() {
   const adminOnly = isAuthenticated && isAdmin(token);
 
   return (
-    <>
-      <Suspense fallback={<Loading />}>
-        <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={!isAuthenticated ? <LandingPage /> : <Navigate to="/home" replace />} />
-        <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/home" replace />} />
-        <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/home" replace />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/pay" element={<PaymentPage />} />
-        <Route path="/not-authorized" element={<NotAuthorized />} />
+    <Suspense fallback={<Loading />}>
+      <Routes>
+      {/* Public Routes */}
+      <Route path="/" element={!isAuthenticated ? <LandingPage /> : <Navigate to="/home" replace />} />
+      <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/home" replace />} />
+      <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/home" replace />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/pay" element={<PaymentPage />} />
+      <Route path="/not-authorized" element={<NotAuthorized />} />
+      <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
 
         {/* Protected User Routes */}
         <Route path="/home" element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/" replace />}>

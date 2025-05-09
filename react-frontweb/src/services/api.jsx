@@ -97,7 +97,7 @@ export const getWallet = () => {
  * @returns {Promise<axios.Response>} The Axios response object containing the payment details.
  */
 export const createWalletTopUpIntent = (topUpData) => {
-  return apiClient.post('/api/payments/create-payment-intent', topUpData);
+  return apiClient.post('/api/wallet/create-payment-intent', topUpData);
 };
 
 /**

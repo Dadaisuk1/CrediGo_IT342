@@ -1,12 +1,12 @@
 // src/context/AuthContext.jsx
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import jwtDecode from 'jwt-decode';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 // Import API functions (update path as needed)
 import {
+  getWallet as apiGetWallet,
   loginUser as apiLogin,
-  registerUser as apiRegister,
-  getWallet as apiGetWallet
+  registerUser as apiRegister
 } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -47,9 +47,10 @@ export const AuthProvider = ({ children }) => {
             setToken(storedToken);
             setUser({
               id: decoded.id || decoded.sub,
-              username: decoded.sub,
+              username: decoded.username || decoded.sub,
               email: decoded.email || decoded.username || '',
-              roles: decoded.roles || decoded.authorities || []
+              roles: decoded.roles || decoded.authorities || [],
+              picture: decoded.picture || null // Add picture for OAuth users
             });
             await fetchWalletBalance();
           }
@@ -78,9 +79,10 @@ export const AuthProvider = ({ children }) => {
       setToken(newToken);
       setUser({
         id: decoded.id || decoded.sub,
-        username: decoded.sub,
+        username: decoded.username || decoded.sub,
         email: decoded.email || decoded.username || '',
-        roles: decoded.roles || decoded.authorities || []
+        roles: decoded.roles || decoded.authorities || [],
+        picture: decoded.picture || null // Add picture for OAuth users
       });
 
       await fetchWalletBalance();
@@ -130,7 +132,9 @@ export const AuthProvider = ({ children }) => {
     logout,
     register,
     setError,
-    fetchWalletBalance
+    fetchWalletBalance,
+    setUser, // Expose setUser for OAuth2 redirect handler
+    setToken // Expose setToken for OAuth2 redirect handler
   };
 
   return (

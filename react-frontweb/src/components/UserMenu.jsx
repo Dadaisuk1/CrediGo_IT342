@@ -8,7 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FaCog, FaShieldAlt, FaSignOutAlt } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { isAdmin } from '../utils/auth';
@@ -30,8 +30,8 @@ export default function UserMenu({ username, onLogout, onSettings, walletBalance
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Avatar: use DiceBear initials API
-  const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.username || 'user')}`;
+  // Avatar: use Google profile picture if available, otherwise use DiceBear
+  const avatarUrl = user?.picture || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.username || 'user')}`;
   const isUserAdmin = user && isAdmin(localStorage.getItem('authToken'));
   const formattedBalance = walletBalance !== null
     ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(walletBalance)
@@ -55,7 +55,7 @@ export default function UserMenu({ username, onLogout, onSettings, walletBalance
           <img
             src={avatarUrl}
             alt={user?.username}
-            className="w-8 h-8 rounded-full bg-credigo-button border-2 border-white"
+            className="w-8 h-8 rounded-full bg-credigo-button border-2 border-white object-cover"
             referrerPolicy="no-referrer"
           />
           {isUserAdmin && (
@@ -72,7 +72,7 @@ export default function UserMenu({ username, onLogout, onSettings, walletBalance
             <img
               src={avatarUrl}
               alt={user?.username}
-              className="w-10 h-10 rounded-full bg-credigo-button border-2 border-white"
+              className="w-10 h-10 rounded-full bg-credigo-button border-2 border-white object-cover"
               referrerPolicy="no-referrer"
             />
             {isUserAdmin && (
