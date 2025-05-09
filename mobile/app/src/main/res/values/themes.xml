@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme - changed to Material Components -->
+    <style name="Theme.Credigo" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Customize your theme colors as needed -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+
+        <!-- Add Material Components specific attributes -->
+        <item name="colorSecondary">@color/colorAccent</item>
+        <item name="colorSurface">@android:color/white</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorOnSecondary">@android:color/white</item>
+    </style>
+</resources>

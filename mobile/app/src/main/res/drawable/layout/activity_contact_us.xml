@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/screen_background">
+
+    <!-- Toolbar -->
+    <include
+        layout="@layout/include_header_toolbar"
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Contact Information Section -->
+    <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            app:layout_constraintBottom_toTopOf="@id/navbar_container">
+
+        <LinearLayout
+                android:id="@+id/contact_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp"
+                android:paddingStart="45dp">
+
+            <!-- Email Contact -->
+            <LinearLayout
+                    android:id="@+id/email_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="38dp">
+
+                <ImageView
+                        android:id="@+id/iv_mail"
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
+                        android:src="@drawable/ic_mail"
+                        android:contentDescription="Email" />
+
+                <TextView
+                        android:id="@+id/tv_email"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="credigo@gmailcom"
+                        android:textColor="@android:color/black"
+                        android:textSize="26sp"
+                        android:layout_marginStart="26dp" />
+            </LinearLayout>
+
+            <!-- Phone Contact -->
+            <LinearLayout
+                    android:id="@+id/phone_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="38dp">
+
+                <ImageView
+                        android:id="@+id/iv_phone"
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
+                        android:src="@drawable/ic_phone"
+                        android:contentDescription="Phone" />
+
+                <TextView
+                        android:id="@+id/tv_phone"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="9842-2033"
+                        android:textColor="@android:color/black"
+                        android:textSize="26sp"
+                        android:layout_marginStart="26dp" />
+            </LinearLayout>
+
+            <!-- Instagram Contact -->
+            <LinearLayout
+                    android:id="@+id/instagram_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="38dp">
+
+                <ImageView
+                        android:id="@+id/iv_instagram"
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
+                        android:src="@drawable/ic_instagram"
+                        android:contentDescription="Instagram" />
+
+                <TextView
+                        android:id="@+id/tv_instagram"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="credigo_official"
+                        android:textColor="@android:color/black"
+                        android:textSize="26sp"
+                        android:layout_marginStart="26dp" />
+            </LinearLayout>
+
+            <!-- Facebook Contact -->
+            <LinearLayout
+                    android:id="@+id/facebook_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                <ImageView
+                        android:id="@+id/iv_facebook"
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
+                        android:src="@drawable/ic_facebook"
+                        android:contentDescription="Facebook" />
+
+                <TextView
+                        android:id="@+id/tv_facebook"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="credigo_official"
+                        android:textColor="@android:color/black"
+                        android:textSize="26sp"
+                        android:layout_marginStart="26dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <FrameLayout
+            android:id="@+id/navbar_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

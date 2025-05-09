@@ -2,15 +2,15 @@ package com.credigo.backend.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Past; // For date of birth validation
-import jakarta.validation.constraints.Pattern; // Optional: for phone number format
+import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate; // Import LocalDate
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -31,13 +31,10 @@ public class UserRegistrationRequest {
   @Size(min = 6, max = 100, message = "Password must be between 6 and 100 characters")
   private String password;
 
-  // Optional Fields
-  // Optional: Add validation pattern for phone number if desired
   @Pattern(regexp = "^(\\+?[0-9\\s\\-()]*)$", message = "Invalid phone number format")
   @Size(max = 20, message = "Phone number cannot exceed 20 characters")
-  private String phoneNumber; // Optional field
+  private String phoneNumber;
 
-  @Past(message = "Date of birth must be in the past") // Ensures date is not in the future
-  private LocalDate dateOfBirth; // Optional field
-
+  @Past(message = "Date of birth must be in the past")
+  private LocalDate dateOfBirth;
 }

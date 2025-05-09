@@ -1,4 +1,4 @@
-package com.credigo.backend.config; // Or your main application package
+package com.credigo.backend.config;
 
 import com.credigo.backend.entity.Role;
 import com.credigo.backend.repository.RoleRepository;
