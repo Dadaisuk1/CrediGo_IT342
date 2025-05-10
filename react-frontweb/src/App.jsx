@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import PaymentSuccess from "./pages/PaymentSuccess";
 import { isAdmin } from './utils/auth';
 
 // Layouts
@@ -86,6 +87,9 @@ function App() {
           <Route path="kyc" element={<AdminKYC />} />
           <Route path="wallet" element={<AdminWallet />} />
         </Route>
+
+        {/* Payment Routes */}
+        <Route path="/payment/success" element={<PaymentSuccess />} />
 
         {/* Catch-all */}
         <Route path="*" element={<Page404 />} />

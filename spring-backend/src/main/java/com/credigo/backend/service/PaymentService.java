@@ -1,8 +1,8 @@
 package com.credigo.backend.service;
 
-import com.credigo.backend.dto.WalletTopUpRequest;
 import com.credigo.backend.dto.PaymentResponse;
 import com.credigo.backend.dto.PaymentStatusResponse;
+import com.credigo.backend.dto.WalletTopUpRequest;
 
 public interface PaymentService {
   PaymentResponse createWalletTopUpPaymentIntent(WalletTopUpRequest topUpRequest, String username);

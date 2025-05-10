@@ -34,6 +34,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat; // Requires Java 17+
 import java.util.HashMap;
 import org.springframework.web.reactive.function.client.WebClient;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -661,6 +662,52 @@ public class PaymentController {
                     "status", "error",
                     "message", "Failed to check payment status: " + e.getMessage()
                 ));
+        }
+    }
+
+    // Add a helper method to get the base URL for redirects
+    private String getRedirectBaseUrl(HttpServletRequest request) {
+        // Check if the request contains our custom header
+        String frontendUrl = request.getHeader("X-Frontend-Url");
+
+        if (frontendUrl != null && !frontendUrl.isEmpty()) {
+            log.info("Using frontend URL from header: {}", frontendUrl);
+            return frontendUrl;
+        }
+
+        // Default fallback cases
+        String serverName = request.getServerName();
+        if (serverName.equals("localhost") || serverName.equals("127.0.0.1")) {
+            return "http://localhost:5173";
+        } else {
+            return "https://credi-go-it-342.vercel.app";
+        }
+    }
+
+    @PostMapping("/wallet/topup")
+    public ResponseEntity<?> createWalletTopUp(
+            @RequestBody WalletTopUpRequest topUpRequest,
+            Authentication authentication,
+            HttpServletRequest request) {
+
+        String username = authentication.getName();
+        log.info("Creating wallet top up for user: {}, amount: {}, type: {}",
+                username, topUpRequest.getAmount(), topUpRequest.getPaymentType());
+
+        try {
+            // Set redirect URLs based on the request origin
+            String baseRedirectUrl = getRedirectBaseUrl(request);
+            topUpRequest.setSuccessRedirectUrl(baseRedirectUrl + "/payment/success");
+            topUpRequest.setCancelRedirectUrl(baseRedirectUrl + "/payment/cancel");
+
+            log.info("Setting redirect URLs - success: {}, cancel: {}",
+                    topUpRequest.getSuccessRedirectUrl(), topUpRequest.getCancelRedirectUrl());
+
+            PaymentResponse response = paymentService.createWalletTopUpPaymentIntent(topUpRequest, username);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error creating wallet top-up: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 

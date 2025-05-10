@@ -4,6 +4,11 @@ import React, { useRef, useState } from 'react';
 import { RiArrowGoBackLine } from 'react-icons/ri';
 import { checkPaymentStatus, createWalletTopUpIntent } from '../services/api';
 
+// Get base URL for the current environment
+const BASE_URL = import.meta.env.DEV
+  ? 'http://localhost:5173'
+  : 'https://credi-go-it-342.vercel.app';
+
 /**
  * Form component for PayMongo wallet top-up payment.
  */
@@ -152,27 +157,76 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
     return true;
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setProcessing(true);
-    setError(null);
-    setSucceeded(false);
-
-    if (!validateForm()) {
-      setProcessing(false);
+  // Function to handle GCash/PayMaya payments which involve redirects
+  const handleEWalletPayment = (data) => {
+    if (!data || !data.checkoutUrl) {
+      setError('Failed to get payment URL');
       return;
     }
 
+    // Store source ID and payment details for success page to use
+    localStorage.setItem('current_payment_source', data.paymentIntentId);
+    localStorage.setItem('current_payment_amount', amount);
+    localStorage.setItem('current_payment_method', selectedMethod);
+    localStorage.setItem('current_payment_timestamp', Date.now().toString());
+
+    // Store expected return URL to verify in success page
+    localStorage.setItem('expected_return_url', `${BASE_URL}/payment/success`);
+
+    // Show notification about redirection
+    toast({
+      title: `Redirecting to ${selectedMethod === 'gcash' ? 'GCash' : 'PayMaya'}`,
+      description: `You'll be redirected to complete the payment. After payment, you'll return to ${BASE_URL}`,
+    });
+
+    console.log(`Payment will redirect back to: ${BASE_URL}/payment/success`);
+
+    // Set a small delay to ensure toast is visible before redirect
+    setTimeout(() => {
+      // Open the checkout URL in the same tab for a smoother experience
+      window.location.href = data.checkoutUrl;
+    }, 1500);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
+
+    setCanCloseForm(false);
+    setProcessing(true);
+    setError(null);
+
     try {
-      // Prepare payment data based on selected method
+      // Prepare payment request data
       const paymentData = {
         amount: parseFloat(amount),
-        paymentType: selectedMethod
+        paymentType: selectedMethod,
       };
 
-      // Add method-specific data
+      // Add specific fields for GCash/PayMaya
+      if (selectedMethod === 'gcash' || selectedMethod === 'paymaya') {
+        paymentData.mobileNumber = mobileNumber;
+
+        // Add complete billing information for GCash/PayMaya
+        paymentData.billing = {
+          name: "CrediGo Test User",
+          email: "test@example.com",
+          phone: mobileNumber || "09123456789",
+          address: {
+            line1: "Test Address Line 1",
+            line2: "Test Address Line 2",
+            city: "Quezon City",
+            state: "Metro Manila",
+            postal_code: "1101",
+            country: "PH"
+          }
+        };
+      }
+
+      // Add card details for card payments
       if (selectedMethod === 'card') {
-        // For actual integration, you'd encrypt card data or use a direct PayMongo form
         paymentData.card = {
           number: cardDetails.cardNumber,
           exp_month: cardDetails.expMonth,
@@ -180,42 +234,22 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
           cvc: cardDetails.cvc,
           name: cardDetails.name
         };
-      } else if (selectedMethod === 'gcash' || selectedMethod === 'paymaya') {
-        // Ensure mobile number is properly formatted (no spaces, dashes, etc)
-        const formattedMobile = mobileNumber.replace(/\D/g, '').trim();
-        paymentData.mobileNumber = formattedMobile;
-
-        // Add complete billing information required by PayMongo
-        paymentData.billing = {
-          name: localStorage.getItem('username') || 'CrediGo User',
-          email: localStorage.getItem('email') || '',
-          phone: formattedMobile,
-          address: {
-            line1: "123 CrediGo Street",
-            line2: "Brgy. IT342",
-            city: "Manila",
-            state: "Metro Manila",
-            postal_code: "1000",
-            country: "PH"
-          }
-        };
       }
 
-      console.log("Sending payment data:", JSON.stringify(paymentData, null, 2));
+      console.log('Sending payment data:', paymentData);
 
-      // Call backend to create a PayMongo payment intent
+      // Call the API to initiate payment
       const response = await createWalletTopUpIntent(paymentData);
-      console.log("Payment API response:", response);
+      console.log('Payment intent response:', response.data);
 
-      const data = response.data;
-      setPaymentData(data);
+      setPaymentData(response.data);
 
       // Store payment intent info in localStorage for admin panel detection
-      if (data.paymentIntentId) {
-        localStorage.setItem(`payment_intent_${data.paymentIntentId}`, JSON.stringify({
-          amount: data.amount,
+      if (response.data.paymentIntentId) {
+        localStorage.setItem(`payment_intent_${response.data.paymentIntentId}`, JSON.stringify({
+          amount: response.data.amount,
           created: Date.now(),
-          status: data.status || 'awaiting_payment_method',
+          status: response.data.status || 'awaiting_payment_method',
           username: localStorage.getItem('username') || 'Anonymous User',
           paymentType: selectedMethod,
           trackingInBackground: false
@@ -223,22 +257,19 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
 
         // Broadcast the event for real-time detection
         window.dispatchEvent(new StorageEvent('storage', {
-          key: `payment_intent_${data.paymentIntentId}`,
+          key: `payment_intent_${response.data.paymentIntentId}`,
           newValue: 'created'
         }));
       }
 
       if (selectedMethod === 'card') {
         // For card payments, begin polling for status
-        startPollingPaymentStatus(data.paymentIntentId);
+        startPollingPaymentStatus(response.data.paymentIntentId);
         // After creating intent, user can close the form
         setCanCloseForm(true);
-      } else if (data.checkoutUrl) {
-        // For GCash/PayMaya, redirect to checkout URL
-        window.open(data.checkoutUrl, '_blank');
-        startPollingPaymentStatus(data.paymentIntentId);
-        // After opening checkout URL, user can close the form
-        setCanCloseForm(true);
+      } else if (response.data.checkoutUrl) {
+        // For GCash/PayMaya, handle the redirect flow
+        handleEWalletPayment(response.data);
       } else {
         setError('Payment initiation failed. Please try again.');
       }

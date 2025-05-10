@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 import java.math.BigDecimal;
 import java.util.Set;
 import com.credigo.backend.service.NotificationService;
-import com.credigo.backend.service.EmailService;
+// import com.credigo.backend.service.EmailService;
 import com.credigo.backend.service.NotificationService.NotificationType;
 
 @Service
@@ -38,21 +38,19 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
   private final PasswordEncoder passwordEncoder;
   private final WalletRepository walletRepository; // Make sure this is injected if needed
   private final NotificationService notificationService;
-  private final EmailService emailService;
+//  private final EmailService emailService;
 
   @Autowired
   public UserServiceImpl(UserRepository userRepository,
       RoleRepository roleRepository,
       PasswordEncoder passwordEncoder,
       WalletRepository walletRepository,
-      NotificationService notificationService,
-      EmailService emailService) { // Ensure WalletRepository is in constructor
+      NotificationService notificationService) { // Ensure WalletRepository is in constructor
     this.userRepository = userRepository;
     this.roleRepository = roleRepository;
     this.passwordEncoder = passwordEncoder;
     this.walletRepository = walletRepository; // Ensure WalletRepository is initialized
     this.notificationService = notificationService;
-    this.emailService = emailService;
   }
 
   @Override
@@ -106,7 +104,7 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
     log.info("Created wallet for user ID: {}", savedUser.getId());
 
     // Send welcome email
-    emailService.sendWelcomeEmail(user.getEmail(), user.getUsername());
+//    emailService.sendWelcomeEmail(user.getEmail(), user.getUsername());
 
     // Send welcome notification
     notificationService.sendSuccessNotification(
@@ -278,37 +276,32 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
     return dto;
   }
 
+  // Comment out the resetPassword method
+  /*
   @Override
   public void resetPassword(String email) {
-    User user = userRepository.findByEmail(email)
-        .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+      User user = userRepository.findByEmail(email)
+          .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
-    String resetToken = generateResetToken();
-    user.setResetToken(resetToken);
-    user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
-    userRepository.save(user);
+      String resetToken = generateResetToken();
+      user.setResetToken(resetToken);
+      user.setResetTokenExpiry(LocalDateTime.now().plusHours(24));
+      userRepository.save(user);
 
-    String resetLink = "http://localhost:5173/reset-password?token=" + resetToken;
-    emailService.sendPasswordResetEmail(email, resetLink);
+      String resetLink = "http://localhost:5173/reset-password?token=" + resetToken;
+  //    emailService.sendPasswordResetEmail(email, resetLink);
 
-    notificationService.sendInfoNotification(
-        user.getId().toString(),
-        "Password reset instructions have been sent to your email."
-    );
+      notificationService.sendInfoNotification(
+          user.getId().toString(),
+          "A password reset link has been sent to your email."
+      );
   }
+  */
 
-  @Override
-  public void updateUserProfile(Long userId, UserUpdateDTO updateDTO) {
-    User user = userRepository.findById(userId)
-        .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-
-    // ... existing update logic ...
-
-    userRepository.save(user);
-
-    notificationService.sendSuccessNotification(
-        userId.toString(),
-        "Your profile has been updated successfully."
-    );
+  // Find and comment out or remove the method that uses UserUpdateDTO (around line 301)
+  /*
+  public User updateUserProfile(UserUpdateDTO userUpdateDTO) {
+      // Method implementation
   }
+  */
 }

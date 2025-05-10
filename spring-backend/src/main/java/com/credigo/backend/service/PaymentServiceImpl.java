@@ -17,17 +17,10 @@ import reactor.core.publisher.Mono;
 import java.util.Base64;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import lombok.extern.slf4j.Slf4j;
-import com.credigo.backend.service.NotificationService;
-import com.credigo.backend.service.EmailService;
-import com.credigo.backend.service.NotificationService.NotificationType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
-import com.credigo.backend.repository.PaymentRepository;
+import org.springframework.core.env.Environment;
 import com.credigo.backend.repository.UserRepository;
-import com.credigo.backend.entity.Payment;
-import com.credigo.backend.entity.PaymentStatus;
-import com.credigo.backend.dto.PaymentRequestDTO;
-import com.credigo.backend.exception.ResourceNotFoundException;
 
 @Service
 @Slf4j
@@ -40,14 +33,10 @@ public class PaymentServiceImpl implements PaymentService {
     private final String apiVersion;
     private final WebClient webClient;
     private final WalletService walletService;
-    @Autowired
-    private PaymentRepository paymentRepository;
+    private final Environment environment;
+
     @Autowired
     private UserRepository userRepository;
-    @Autowired
-    private NotificationService notificationService;
-    @Autowired
-    private EmailService emailService;
 
     public PaymentServiceImpl(
             @Value("${paymongo.secret.key}") String secretKey,
@@ -56,18 +45,28 @@ public class PaymentServiceImpl implements PaymentService {
             @Value("${paymongo.cancel.url}") String cancelUrl,
             @Value("${paymongo.webhook.url}") String webhookUrl,
             @Value("${paymongo.api.version}") String apiVersion,
-            WalletService walletService) {
+            WalletService walletService,
+            Environment environment) {
 
         if (secretKey == null || secretKey.trim().isEmpty()) {
             throw new IllegalArgumentException("PayMongo secret key is not configured.");
         }
 
         this.secretKey = secretKey;
-        this.successUrl = successUrl;
-        this.cancelUrl = cancelUrl;
+        this.environment = environment;
+
+        // Check environment to determine if we should use local or production URLs
+        boolean isDevelopment = isDevelopmentEnvironment();
+
+        // Use local URL in development, otherwise use configured URL
+        this.successUrl = isDevelopment ? "http://localhost:5173/payment/success" : successUrl;
+        this.cancelUrl = isDevelopment ? "http://localhost:5173/payment/cancel" : cancelUrl;
         this.webhookUrl = webhookUrl;
         this.apiVersion = apiVersion;
         this.walletService = walletService;
+
+        log.info("Payment Service initialized with success URL: {}", this.successUrl);
+        log.info("Payment Service initialized with cancel URL: {}", this.cancelUrl);
 
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
@@ -76,6 +75,24 @@ public class PaymentServiceImpl implements PaymentService {
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("PayMongo-Version", apiVersion)
                 .build();
+    }
+
+    // Add a helper method to detect development environment
+    private boolean isDevelopmentEnvironment() {
+        String[] activeProfiles = environment.getActiveProfiles();
+        for (String profile : activeProfiles) {
+            if (profile.equals("dev") || profile.equals("development") || profile.equals("local")) {
+                return true;
+            }
+        }
+
+        // Also check if we're running on localhost
+        String serverPort = environment.getProperty("server.port");
+        if (serverPort != null && !serverPort.equals("80") && !serverPort.equals("443")) {
+            return true;
+        }
+
+        return false;
     }
 
     @Override
@@ -87,7 +104,7 @@ public class PaymentServiceImpl implements PaymentService {
             if ("card".equals(paymentType)) {
                 return createCardPaymentIntent(amountInCentavos, username);
             } else if ("gcash".equals(paymentType) || "paymaya".equals(paymentType)) {
-                return createEWalletSource(amountInCentavos, username, paymentType);
+                return createEWalletSource(amountInCentavos, username, paymentType, topUpRequest);
             } else {
                 throw new IllegalArgumentException("Unsupported payment type: " + paymentType);
             }
@@ -151,31 +168,47 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
-    private PaymentResponse createEWalletSource(long amountInCentavos, String username, String type) {
+    private PaymentResponse createEWalletSource(long amountInCentavos, String username, String type, WalletTopUpRequest topUpRequest) {
         log.debug("Creating {} source for user {}", type, username);
         // Step 1: Create a Source
         Map<String, Object> sourceAttributes = new HashMap<>();
         sourceAttributes.put("amount", amountInCentavos);
         sourceAttributes.put("currency", "PHP");
-        sourceAttributes.put("redirect", Map.of(
-            "success", successUrl,
-            "failed", cancelUrl
-        ));
+
+        // Use redirect URLs from the request if provided, otherwise fall back to configured URLs
+        String successUrl = (topUpRequest != null && topUpRequest.getSuccessRedirectUrl() != null)
+            ? topUpRequest.getSuccessRedirectUrl()
+            : this.successUrl;
+
+        String cancelUrl = (topUpRequest != null && topUpRequest.getCancelRedirectUrl() != null)
+            ? topUpRequest.getCancelRedirectUrl()
+            : this.cancelUrl;
+
+        log.info("Using redirect URLs - success: {}, cancel: {}", successUrl, cancelUrl);
+
+        // Proper format for redirect
+        Map<String, String> redirectMap = new HashMap<>();
+        redirectMap.put("success", successUrl);
+        redirectMap.put("failed", cancelUrl);
+        sourceAttributes.put("redirect", redirectMap);
+
         sourceAttributes.put("type", type);
 
         // Include complete billing information
         Map<String, Object> billing = new HashMap<>();
-        billing.put("name", username);
-        billing.put("email", username + "@credigo.com");
+
+        // Default billing info
+        billing.put("name", "CrediGo User");
+        billing.put("email", username + "@example.com");
         billing.put("phone", "09123456789");
 
         // Add complete address information
-        Map<String, Object> address = new HashMap<>();
-        address.put("line1", "123 CrediGo Street");
-        address.put("line2", "Brgy. IT342");
-        address.put("city", "Manila");
+        Map<String, String> address = new HashMap<>();
+        address.put("line1", "Test Address Line 1");
+        address.put("line2", "Test Address Line 2");
+        address.put("city", "Quezon City");
         address.put("state", "Metro Manila");
-        address.put("postal_code", "1000");
+        address.put("postal_code", "1101");
         address.put("country", "PH");
 
         billing.put("address", address);
@@ -187,8 +220,11 @@ public class PaymentServiceImpl implements PaymentService {
         metadata.put("transaction_type", "wallet_topup");
         sourceAttributes.put("metadata", metadata);
 
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("attributes", sourceAttributes);
+
         Map<String, Object> sourceRequestBody = new HashMap<>();
-        sourceRequestBody.put("data", Map.of("attributes", sourceAttributes));
+        sourceRequestBody.put("data", dataMap);
 
         log.info("Sending PayMongo source request for {}: {}", type, sourceRequestBody);
 
@@ -244,7 +280,7 @@ public class PaymentServiceImpl implements PaymentService {
             }
         } catch (WebClientResponseException e) {
             log.error("PayMongo API error for {}: {} - {}", type, e.getRawStatusCode(), e.getResponseBodyAsString());
-            throw new RuntimeException("PayMongo API error: " + e.getMessage(), e);
+            throw new RuntimeException("PayMongo API error: " + e.getRawStatusCode() + " - " + e.getResponseBodyAsString());
         } catch (Exception e) {
             log.error("Unexpected error creating {} source: {}", type, e.getMessage(), e);
             throw new RuntimeException("Error creating payment source: " + e.getMessage(), e);
@@ -432,83 +468,6 @@ public class PaymentServiceImpl implements PaymentService {
         } catch (Exception e) {
             log.error("Error checking payment status for {}: {}", paymentIntentId, e.getMessage(), e);
             return PaymentStatusResponse.failed(paymentIntentId, e.getMessage());
-        }
-    }
-
-    @Override
-    public Payment processPayment(PaymentRequestDTO paymentRequest) {
-        // ... existing payment processing logic ...
-
-        Payment payment = paymentRepository.save(newPayment);
-
-        // Send transaction confirmation email
-        String transactionDetails = String.format(
-            "<p><strong>Transaction ID:</strong> %s</p>" +
-            "<p><strong>Amount:</strong> ₱%.2f</p>" +
-            "<p><strong>Status:</strong> %s</p>" +
-            "<p><strong>Date:</strong> %s</p>",
-            payment.getId(),
-            payment.getAmount(),
-            payment.getStatus(),
-            payment.getCreatedAt()
-        );
-
-        emailService.sendTransactionConfirmationEmail(
-            payment.getUser().getEmail(),
-            payment.getUser().getUsername(),
-            transactionDetails
-        );
-
-        // Send notification based on payment status
-        switch (payment.getStatus()) {
-            case SUCCESS:
-                notificationService.sendSuccessNotification(
-                    payment.getUser().getId().toString(),
-                    String.format("Payment of ₱%.2f was successful", payment.getAmount())
-                );
-                break;
-            case PENDING:
-                notificationService.sendWarningNotification(
-                    payment.getUser().getId().toString(),
-                    String.format("Payment of ₱%.2f is pending", payment.getAmount())
-                );
-                break;
-            case FAILED:
-                notificationService.sendErrorNotification(
-                    payment.getUser().getId().toString(),
-                    String.format("Payment of ₱%.2f failed", payment.getAmount())
-                );
-                break;
-        }
-
-        return payment;
-    }
-
-    @Override
-    public void updatePaymentStatus(Long paymentId, PaymentStatus status) {
-        Payment payment = paymentRepository.findById(paymentId)
-            .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
-
-        payment.setStatus(status);
-        paymentRepository.save(payment);
-
-        // Send status update notification
-        String message = String.format(
-            "Your payment of ₱%.2f has been %s",
-            payment.getAmount(),
-            status.name().toLowerCase()
-        );
-
-        switch (status) {
-            case SUCCESS:
-                notificationService.sendSuccessNotification(payment.getUser().getId().toString(), message);
-                break;
-            case PENDING:
-                notificationService.sendWarningNotification(payment.getUser().getId().toString(), message);
-                break;
-            case FAILED:
-                notificationService.sendErrorNotification(payment.getUser().getId().toString(), message);
-                break;
         }
     }
 }

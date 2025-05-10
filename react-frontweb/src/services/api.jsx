@@ -2,11 +2,17 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api.config';
 
+// Get the base URL for the current environment
+const FRONTEND_URL = import.meta.env.DEV
+  ? 'http://localhost:5173'
+  : 'https://credi-go-it-342.vercel.app';
+
 // Create axios instance with base URL
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'X-Frontend-Url': FRONTEND_URL // Add custom header for PayMongo redirects
   },
   timeout: 10000, // 10 seconds timeout
 });
@@ -14,15 +20,18 @@ const apiClient = axios.create({
 // Request interceptor to add JWT token to Authorization header
 apiClient.interceptors.request.use(
   (config) => {
-    // Skip token check for authentication endpoints
-    const isAuthEndpoint = config.url.includes('/api/auth/');
+    // Check if this is a public endpoint that doesn't require authentication
+    const isPublicEndpoint = config.url.includes('/api/auth/') ||
+                            config.url.includes('/api/products') ||
+                            config.url.includes('/api/platforms') ||
+                            config.url.startsWith('/api/public/');
 
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
-    } else if (!isAuthEndpoint) {
-      console.warn('No token found for protected route.');
-      // Only redirect for non-auth endpoints
+    } else if (!isPublicEndpoint) {
+      console.warn('No token found for protected route:', config.url);
+      // Only redirect for protected endpoints
       window.location.href = '/login';
     }
     return config;
@@ -88,16 +97,12 @@ export const getWallet = () => {
 };
 
 /**
- * Creates a PayMongo Payment Intent for topping up the wallet.
- * @param {object} topUpData - Payment data object containing:
- *   - amount: 100.00 (required)
- *   - paymentType: 'card', 'gcash', or 'paymaya' (required)
- *   - card: { number, exp_month, exp_year, cvc, name } (for card payments)
- *   - mobileNumber: '09XXXXXXXXX' (for gcash/paymaya payments)
- * @returns {Promise<axios.Response>} The Axios response object containing the payment details.
+ * Creates a wallet top-up intent with PayMongo.
+ * @param {object} paymentData - Payment data including amount and payment type
+ * @returns {Promise<axios.Response>} The Axios response object.
  */
-export const createWalletTopUpIntent = (topUpData) => {
-  return apiClient.post('/api/wallet/create-payment-intent', topUpData);
+export const createWalletTopUpIntent = (paymentData) => {
+  return apiClient.post('/api/payments/wallet/topup', paymentData);
 };
 
 /**

@@ -21,7 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
                 "https://credi-go-it-342.vercel.app"  // Production frontend
             )
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-            .allowedHeaders("*")
+            .allowedHeaders("Authorization", "Cache-Control", "Content-Type", "X-Frontend-Url")
             .allowCredentials(true);
     }
 

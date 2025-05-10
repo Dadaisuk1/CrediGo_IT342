@@ -6,11 +6,15 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.HashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class NotificationService {
 
-    @Autowired
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
+
+    @Autowired(required = false) // Make this optional
     private SimpMessagingTemplate messagingTemplate;
 
     public enum NotificationType {
@@ -21,6 +25,12 @@ public class NotificationService {
     }
 
     public void sendNotification(String userId, String message, NotificationType type) {
+        if (messagingTemplate == null) {
+            log.info("WebSocket messaging disabled. Would send notification to user {}: {} ({})",
+                userId, message, type);
+            return;
+        }
+
         Map<String, Object> notification = new HashMap<>();
         notification.put("message", message);
         notification.put("type", type.name());
@@ -34,6 +44,12 @@ public class NotificationService {
     }
 
     public void sendGlobalNotification(String message, NotificationType type) {
+        if (messagingTemplate == null) {
+            log.info("WebSocket messaging disabled. Would send global notification: {} ({})",
+                message, type);
+            return;
+        }
+
         Map<String, Object> notification = new HashMap<>();
         notification.put("message", message);
         notification.put("type", type.name());

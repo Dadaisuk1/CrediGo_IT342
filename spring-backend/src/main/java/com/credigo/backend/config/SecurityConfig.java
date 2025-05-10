@@ -81,7 +81,7 @@ public class SecurityConfig {
         "http://localhost:8080"
     ));
     configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
-    configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
+    configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type", "X-Frontend-Url"));
     configuration.setAllowCredentials(true);
     configuration.setMaxAge(3600L); // 1 hour
 
