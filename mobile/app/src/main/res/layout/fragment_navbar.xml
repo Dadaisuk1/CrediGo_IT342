@@ -42,7 +42,7 @@
                 android:layout_height="wrap_content"
                 android:text="Home"
                 android:textSize="12sp"
-                    android:textColor="@color/white"/>
+                android:textColor="@color/white"/>
         </LinearLayout>
 
         <LinearLayout
@@ -60,7 +60,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_search"
-                android:contentDescription="Search" />
+                android:contentDescription="Search"/>
 
             <TextView
                 android:id="@+id/searchText"
@@ -68,7 +68,7 @@
                 android:layout_height="wrap_content"
                 android:text="Search"
                 android:textSize="12sp"
-                    android:textColor="@color/white"/>
+                android:textColor="@color/white"/>
         </LinearLayout>
 
         <LinearLayout
@@ -86,15 +86,15 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_heart"
-                android:contentDescription="Likes" />
+                android:contentDescription="Wishlist"/>
 
             <TextView
                 android:id="@+id/likesText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Likes"
+                android:text="Wishlist"
                 android:textSize="12sp"
-                    android:textColor="@color/white"/>
+                android:textColor="@color/white"/>
         </LinearLayout>
 
         <LinearLayout
@@ -112,7 +112,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_profile"
-                android:contentDescription="Profile" />
+                android:contentDescription="Profile"/>
 
             <TextView
                 android:id="@+id/profileText"
@@ -120,7 +120,7 @@
                 android:layout_height="wrap_content"
                 android:text="Profile"
                 android:textSize="12sp"
-                    android:textColor="@color/white"/>
+                android:textColor="@color/white"/>
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

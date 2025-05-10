@@ -337,6 +337,7 @@ class ProductsListActivity : AppCompatActivity() {
     }
 
     private fun setupSortButtons() {
+        // Initialize sort buttons
         val btnSortPopular = findViewById<Button>(R.id.btn_sort_popular)
         val btnSortHighLow = findViewById<Button>(R.id.btn_sort_high_low)
         val btnSortLowHigh = findViewById<Button>(R.id.btn_sort_low_high)
@@ -353,12 +354,6 @@ class ProductsListActivity : AppCompatActivity() {
                 // Apply filtered products to the adapter
                 updateAdapter(products)
             }
-
-            // Setup visual styling for buttons
-            btnSortPopular.setBackgroundResource(android.R.drawable.btn_default)
-            btnSortHighLow.setBackgroundResource(android.R.drawable.btn_default)
-            btnSortLowHigh.setBackgroundResource(android.R.drawable.btn_default)
-            btnSortAZ.setBackgroundResource(android.R.drawable.btn_default)
 
             // Initialize with current products if available
             if (categoryProducts.isNotEmpty()) {

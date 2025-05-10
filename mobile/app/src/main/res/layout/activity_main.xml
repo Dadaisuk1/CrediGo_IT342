@@ -10,20 +10,48 @@
         tools:context=".MainActivity"
         >
 
-    <!-- Top Image -->
-
-    <!-- Bottom Buttons Wrapper -->
+    <!-- Logo at top -->
     <ImageView
-            android:id="@+id/img_top"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:src="@drawable/img_flowpay_main"
-            android:scaleType="centerCrop"
+            android:id="@+id/img_logo"
+            android:layout_width="200dp"
+            android:layout_height="80dp"
+            android:src="@drawable/credigo_logo"
+            android:layout_marginTop="32dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.0" />
+            android:contentDescription="Credigo Logo" />
 
+    <!-- Middle Image - moved higher with adjusted constraints -->
+    <ImageView
+            android:id="@+id/img_middle"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:src="@drawable/img_graphic1"
+            android:scaleType="fitCenter"
+            android:layout_marginHorizontal="24dp"
+            app:layout_constraintTop_toBottomOf="@id/img_logo"
+            app:layout_constraintBottom_toTopOf="@id/welcome_text"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:contentDescription="Graphic illustration" 
+            app:layout_constraintHeight_percent="0.5" />
+
+    <!-- Welcome Text -->
+    <TextView
+            android:id="@+id/welcome_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Welcome to Credigo"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/credigo_blue"
+            android:layout_marginBottom="24dp"
+            app:layout_constraintBottom_toTopOf="@id/bottom_buttons"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Bottom Buttons Wrapper -->
     <LinearLayout
             android:id="@+id/bottom_buttons"
             android:layout_width="0dp"

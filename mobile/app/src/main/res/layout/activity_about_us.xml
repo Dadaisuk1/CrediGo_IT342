@@ -50,7 +50,7 @@
             android:layout_marginTop="24dp"
             android:layout_marginEnd="32dp"
             android:gravity="center"
-            android:text="FlowPay is your instant top-up platform for digital gaming and entertainment. We provide fast, secure, and convenient transactions so you can enhance your experience without interruption. With competitive rates, exclusive offers, and reliable support, we make topping up effortless—so you can focus on what matters most."
+            android:text="Credigo is your instant top-up platform for digital gaming and entertainment. We provide fast, secure, and convenient transactions so you can enhance your experience without interruption. With competitive rates, exclusive offers, and reliable support, we make topping up effortless—so you can focus on what matters most."
             android:textColor="@android:color/black"
             android:textSize="14sp"
             app:layout_constraintEnd_toEndOf="parent"

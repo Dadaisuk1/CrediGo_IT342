@@ -9,7 +9,7 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="input_background">#F6F6F6</color>
-    <color name="input_focused_background">#DDF6E1</color>
+    <color name="input_focused_background">#FAE8EB</color>
     <color name="error_text">#FF0000</color>
     <color name="error_red">#FF0000</color>
     <color name="text_grey">#757575</color>
@@ -24,7 +24,7 @@
     <color name="gray">#757575</color>
     <color name="gray_light">#DAFFE6</color>
     <color name="button_background">#121629</color>
-    <color name="input_focused_border">#00CA63</color>
+    <color name="input_focused_border">@color/credigo_pink</color>
     <color name="green_selected">#00CA63</color>
     <color name="green">#4CAF50</color>
     <color name="green_dark">#388E3C</color>

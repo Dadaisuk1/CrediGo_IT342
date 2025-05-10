@@ -101,8 +101,8 @@ class ProductAdapter(
         // Ensure heart icon is visible and set correctly for each item
         holder.heartIcon.visibility = View.VISIBLE
         holder.heartIcon.setImageResource(
-            if (isInWishlist(product)) R.drawable.ic_heart_green
-            else R.drawable.ic_heart
+            if (isInWishlist(product)) R.drawable.ic_heart_fill_pink
+            else R.drawable.ic_heart_line
         )
     }
 

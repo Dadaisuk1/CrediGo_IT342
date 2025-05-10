@@ -1,6 +1,9 @@
 package com.sia.credigo.utils
 
+import android.content.res.ColorStateList
 import android.widget.Button
+import androidx.core.content.ContextCompat
+import com.sia.credigo.R
 import com.sia.credigo.model.Product
 
 /**
@@ -65,18 +68,25 @@ class SortButtonsHandler(
     }
     
     private fun updateButtonBackgrounds() {
+        // Get the colors from resources
+        val context = btnPopular.context
+        val credigoPink = ContextCompat.getColor(context, R.color.credigo_pink)
+        val white = ContextCompat.getColor(context, R.color.white)
+        val transparent = 0x00000000
+        val black = ContextCompat.getColor(context, R.color.black)
+        
         // Apply visual style to selected/unselected buttons
         val buttons = listOf(btnPopular, btnHighLow, btnLowHigh, btnAZ)
         buttons.forEach { button ->
             if (button.isSelected) {
-                // Selected state
-                button.setBackgroundColor(0xFF4CAF50.toInt()) // Green background
-                button.setTextColor(0xFFFFFFFF.toInt()) // White text
+                // Selected state - use credigo_pink background with white text
+                button.setBackgroundColor(credigoPink)
+                button.setTextColor(white)
                 button.alpha = 1.0f
             } else {
-                // Normal state
-                button.setBackgroundColor(0x00000000) // Transparent background
-                button.setTextColor(0xFF000000.toInt()) // Black text
+                // Normal state - transparent background with black text
+                button.setBackgroundColor(transparent)
+                button.setTextColor(black)
                 button.alpha = 0.7f
             }
         }

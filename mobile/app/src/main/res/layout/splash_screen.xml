@@ -4,10 +4,10 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:gravity="center"
-        android:background="@color/button_background">
+        android:background="#213266">
         <ImageView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:src="@drawable/splash_screen"
-        />
+            android:src="@drawable/credigo_logo"
+            android:contentDescription="CrediGo Logo" />
 </androidx.appcompat.widget.LinearLayoutCompat>
