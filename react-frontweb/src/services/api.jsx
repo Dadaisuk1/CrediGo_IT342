@@ -276,7 +276,7 @@ export const deleteKYCRequest = (id) => {
 
 /**
  * Manually confirms a payment for testing/demo purposes.
- * @param {object} paymentData - { paymentIntentId: '...', amount: 100.00 }
+ * @param {object} paymentData - { paymentIntentId: '...', amount: 100.00, targetUsername: '...' (optional) }
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const confirmTestPayment = (paymentData) => {

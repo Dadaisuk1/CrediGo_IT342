@@ -19,6 +19,17 @@ public interface WalletService {
    */
   void addFundsToWallet(String username, BigDecimal amount, String PaymentIntentId, String description);
 
+  /**
+   * Adds funds to a user's wallet and creates a transaction record.
+   * Checks for duplicate processing using paymentIntentId.
+   *
+   * @param username The username of the wallet owner
+   * @param amount The amount to add (must be positive)
+   * @param paymentIntentId Payment intent ID for idempotency check
+   * @param description Transaction description to record
+   */
+  void addFundsToWallet(String username, double amount, String paymentIntentId);
+
   // Add other wallet-related methods later if needed (e.g., addFunds, deducted
   // funds)
 }

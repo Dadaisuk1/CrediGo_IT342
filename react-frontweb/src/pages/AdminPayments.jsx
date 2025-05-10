@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RiRefreshLine } from 'react-icons/ri';
 import { toast } from 'react-toastify';
 import { confirmTestPayment } from '../services/api';
@@ -6,6 +6,7 @@ import { confirmTestPayment } from '../services/api';
 const AdminPayments = () => {
   const [paymentIntentId, setPaymentIntentId] = useState('');
   const [amount, setAmount] = useState('');
+  const [targetUsername, setTargetUsername] = useState('');
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
@@ -135,78 +136,78 @@ const AdminPayments = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!paymentIntentId || !amount) {
-      toast.error('Please fill in all fields');
-      return;
-    }
-
     setProcessing(true);
     setResult(null);
+
+    if (!paymentIntentId || !amount) {
+      toast.error('Please enter both payment ID and amount');
+      setProcessing(false);
+      return;
+    }
 
     try {
       const response = await confirmTestPayment({
         paymentIntentId,
-        amount: parseFloat(amount)
+        amount: parseFloat(amount),
+        targetUsername: targetUsername
       });
 
-      // Add to history and mark as confirmed
-      const newPayment = markPaymentAsConfirmed(paymentIntentId, amount);
+      setResult({
+        success: true,
+        message: response.data.message || 'Payment confirmed successfully!',
+        details: response.data
+      });
 
-      setResult({ success: true, data: response.data });
-      toast.success('Payment confirmed successfully!');
-
-      // Remove this payment from pending list if it exists
-      setPendingPayments(prev => prev.filter(p => p.id !== paymentIntentId));
-
-      // Reset form
+      // Clear form
       setPaymentIntentId('');
       setAmount('');
+      if (response.data.success) {
+        toast.success(`Payment confirmed! ${targetUsername ? `Funds added to ${targetUsername}'s wallet.` : ''}`);
+      }
     } catch (error) {
-      console.error('Payment confirmation error:', error);
+      console.error('Error confirming payment:', error);
       setResult({
         success: false,
-        error: error.response?.data?.message || 'Failed to confirm payment'
+        message: error.response?.data || 'Failed to confirm payment',
+        error: error.message
       });
-      toast.error('Failed to confirm payment');
+      toast.error(`Failed to confirm payment: ${error.response?.data || error.message}`);
     } finally {
       setProcessing(false);
     }
   };
 
   const handleQuickConfirm = async (payment) => {
-    setPaymentIntentId(payment.id);
-    setAmount(payment.amount / 100); // Convert from cents to whole amount
+    if (processing) return;
 
-    // Automatically submit after short delay to allow state update
-    setTimeout(() => {
-      try {
-        // Mark as confirmed in localStorage
-        markPaymentAsConfirmed(payment.id, payment.amount / 100);
+    try {
+      setProcessing(true);
 
-        // Also attempt to confirm via API
-        confirmTestPayment({
-          paymentIntentId: payment.id,
-          amount: payment.amount / 100
-        }).catch(err => console.error('Error in API confirmation:', err));
+      // Extract payment information
+      const { id, amount } = payment;
 
-        // Update the UI
-        setPendingPayments(prev => prev.filter(p => p.id !== payment.id));
-        toast.success('Payment confirmed successfully!');
+      // Convert amount from cents to actual amount (since it's stored in cents)
+      const actualAmount = amount / 100;
 
-        // Also stop polling immediately
-        localStorage.setItem('stopPolling_' + payment.id, Date.now().toString());
+      const response = await confirmTestPayment({
+        paymentIntentId: id,
+        amount: actualAmount, // Use the converted amount
+        targetUsername: payment.username // Use the payment owner's username
+      });
 
-        // Broadcast the event
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: 'stopPolling_' + payment.id,
-          newValue: Date.now().toString()
-        }));
-      } catch (error) {
-        console.error('Error confirming payment:', error);
-        toast.error('Failed to confirm payment');
+      if (response.data.success) {
+        toast.success(`Payment ${id} confirmed! ${actualAmount} PHP added to ${payment.username || 'user'}'s wallet.`);
+        // Remove from pending payments list
+        setPendingPayments(prev => prev.filter(p => p.id !== id));
+      } else {
+        toast.warning(`Payment confirmed but with issues: ${response.data.message}`);
       }
-    }, 100);
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      toast.error(`Failed to confirm payment: ${error.response?.data || error.message}`);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const forceClosePolling = async () => {
@@ -391,6 +392,22 @@ const AdminPayments = () => {
               </p>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Target Username
+              </label>
+              <input
+                type="text"
+                value={targetUsername}
+                onChange={(e) => setTargetUsername(e.target.value)}
+                placeholder="Leave empty to use your account"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                If left empty, funds will be added to your account
+              </p>
+            </div>
+
             <div className="flex space-x-2">
               <button
                 type="submit"
@@ -419,7 +436,7 @@ const AdminPayments = () => {
             <div className={`mt-4 p-4 rounded-md ${result.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
               <p className="font-medium">{result.success ? 'Success!' : 'Error'}</p>
               <pre className="mt-2 text-sm overflow-auto max-h-40">
-                {JSON.stringify(result.success ? result.data : result.error, null, 2)}
+                {JSON.stringify(result.success ? result.details : result.error, null, 2)}
               </pre>
             </div>
           )}

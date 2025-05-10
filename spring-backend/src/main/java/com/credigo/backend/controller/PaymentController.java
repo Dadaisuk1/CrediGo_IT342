@@ -590,57 +590,50 @@ public class PaymentController {
                 || "anonymousUser".equals(authentication.getPrincipal())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated.");
         }
-        String username = authentication.getName();
+        String adminUsername = authentication.getName();
 
         String paymentIntentId = (String) requestBody.get("paymentIntentId");
-        if (paymentIntentId == null || paymentIntentId.isBlank()) {
-            return ResponseEntity.badRequest().body("Missing paymentIntentId");
+        if (paymentIntentId == null) {
+            return ResponseEntity.badRequest().body("Payment intent ID is required.");
         }
 
-        BigDecimal amount = null;
+        // Get the target username (the user who should receive the funds)
+        String targetUsername = (String) requestBody.get("targetUsername");
+        // If targetUsername is not provided, default to the admin's username
+        if (targetUsername == null || targetUsername.trim().isEmpty()) {
+            targetUsername = adminUsername;
+        }
+
+        String amountStr = requestBody.get("amount") != null ? requestBody.get("amount").toString() : null;
+        if (amountStr == null) {
+            return ResponseEntity.badRequest().body("Amount is required.");
+        }
+
+        double amount;
         try {
-            if (requestBody.get("amount") instanceof Number) {
-                double amountValue = ((Number) requestBody.get("amount")).doubleValue();
-                amount = BigDecimal.valueOf(amountValue);
-            } else if (requestBody.get("amount") instanceof String) {
-                amount = new BigDecimal((String) requestBody.get("amount"));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Invalid amount format");
+            amount = Double.parseDouble(amountStr);
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().body("Invalid amount format.");
         }
 
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            return ResponseEntity.badRequest().body("Amount must be positive");
-        }
+        log.info("Test endpoint: Manually crediting user {} wallet with {} PHP, paymentIntentId: {}",
+                targetUsername, amount, paymentIntentId);
 
         try {
-            // Check if amount is in centavos (large value) and convert to PHP if needed
-            boolean isAmountInCentavos = amount.compareTo(new BigDecimal("1000")) > 0;
-            BigDecimal phpAmount = isAmountInCentavos
-                ? amount.divide(new BigDecimal("100"))
-                : amount;
+            // Generate a unique payment ID for each test transaction to avoid duplicate checks
+            // Combine the original ID with a timestamp to make it unique
+            String uniqueTestPaymentId = paymentIntentId + "_test_" + System.currentTimeMillis();
 
-            log.info("Test endpoint: Manually crediting user {} wallet with {} PHP, paymentIntentId: {}",
-                    username, phpAmount, paymentIntentId);
-
-            // Add funds to wallet
-            walletService.addFundsToWallet(
-                username,
-                phpAmount,
-                paymentIntentId,
-                "Test wallet top-up via PayMongo"
-            );
-
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Wallet credited successfully",
-                "amount", phpAmount,
-                "paymentIntentId", paymentIntentId
-            ));
+            // Add funds to the targetUsername's wallet, not the admin's
+            walletService.addFundsToWallet(targetUsername, amount, uniqueTestPaymentId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Payment confirmed and " + amount + " PHP added to " + targetUsername + "'s wallet.");
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Error in test confirm payment: {}", e.getMessage(), e);
+            log.error("Error confirming payment: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to process test payment: " + e.getMessage());
+                    .body("Could not confirm payment: " + e.getMessage());
         }
     }
 
