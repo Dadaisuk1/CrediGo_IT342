@@ -1,9 +1,10 @@
 // src/App.jsx
 import { Toaster } from "@/components/ui/toaster";
-import { Suspense, lazy } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Suspense, lazy, useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import PaymentSuccess from "./pages/PaymentSuccess";
+import { websocketService } from './services/websocket';
 import { isAdmin } from './utils/auth';
 
 // Layouts
@@ -49,8 +50,22 @@ const Loading = () => (
 );
 
 function App() {
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated, token, user } = useAuth();
   const adminOnly = isAuthenticated && isAdmin(token);
+  const location = useLocation();
+
+  // Handle WebSocket connections based on authentication state
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      websocketService.connect(user.id, null);
+    } else {
+      websocketService.disconnect();
+    }
+
+    return () => {
+      websocketService.disconnect();
+    };
+  }, [isAuthenticated, user?.id, location.pathname]);
 
   return (
     <>

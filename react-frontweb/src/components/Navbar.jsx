@@ -1,9 +1,9 @@
-import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import credigoLogo from '../assets/images/credigo_icon.svg';
 import { useAuth } from '../context/AuthContext';
+import NotificationCenter from './NotificationCenter';
 import UserMenu from './UserMenu';
 import WalletMenu from './WalletMenu';
-import credigoLogo from '../assets/images/credigo_icon.svg';
 
 function Navbar() {
   const { isAuthenticated, user, logout, walletBalance } = useAuth();
@@ -50,6 +50,7 @@ function Navbar() {
               {/* User Menu Dropdown (avatar only) and Wallet Menu */}
               <div className="hidden sm:flex items-center space-x-2">
                 <WalletMenu walletBalance={walletBalance} onWallet={() => navigate('/wallet')} />
+                <NotificationCenter />
                 <UserMenu
                   username={user?.username}
                   walletBalance={walletBalance}
