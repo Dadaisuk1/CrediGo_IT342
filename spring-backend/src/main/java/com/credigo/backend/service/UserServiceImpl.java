@@ -24,6 +24,9 @@ import java.util.stream.Collectors;
 // --- Other necessary imports ---
 import java.math.BigDecimal;
 import java.util.Set;
+import com.credigo.backend.service.NotificationService;
+import com.credigo.backend.service.EmailService;
+import com.credigo.backend.service.NotificationService.NotificationType;
 
 @Service
 public class UserServiceImpl implements UserService, UserDetailsService { // Implement UserDetailsService
@@ -34,16 +37,22 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
   private final RoleRepository roleRepository;
   private final PasswordEncoder passwordEncoder;
   private final WalletRepository walletRepository; // Make sure this is injected if needed
+  private final NotificationService notificationService;
+  private final EmailService emailService;
 
   @Autowired
   public UserServiceImpl(UserRepository userRepository,
       RoleRepository roleRepository,
       PasswordEncoder passwordEncoder,
-      WalletRepository walletRepository) { // Ensure WalletRepository is in constructor
+      WalletRepository walletRepository,
+      NotificationService notificationService,
+      EmailService emailService) { // Ensure WalletRepository is in constructor
     this.userRepository = userRepository;
     this.roleRepository = roleRepository;
     this.passwordEncoder = passwordEncoder;
     this.walletRepository = walletRepository; // Ensure WalletRepository is initialized
+    this.notificationService = notificationService;
+    this.emailService = emailService;
   }
 
   @Override
@@ -95,6 +104,15 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
     newWallet.setBalance(BigDecimal.ZERO);
     walletRepository.save(newWallet);
     log.info("Created wallet for user ID: {}", savedUser.getId());
+
+    // Send welcome email
+    emailService.sendWelcomeEmail(user.getEmail(), user.getUsername());
+
+    // Send welcome notification
+    notificationService.sendSuccessNotification(
+        savedUser.getId().toString(),
+        "Welcome to CrediGo! Your account has been created successfully."
+    );
 
     log.info("Successfully registered user and created wallet for ID: {}", savedUser.getId());
     return savedUser;
@@ -259,5 +277,38 @@ public class UserServiceImpl implements UserService, UserDetailsService { // Imp
     dto.setBalance(balance);
     return dto;
   }
-}
 
+  @Override
+  public void resetPassword(String email) {
+    User user = userRepository.findByEmail(email)
+        .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+
+    String resetToken = generateResetToken();
+    user.setResetToken(resetToken);
+    user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
+    userRepository.save(user);
+
+    String resetLink = "http://localhost:5173/reset-password?token=" + resetToken;
+    emailService.sendPasswordResetEmail(email, resetLink);
+
+    notificationService.sendInfoNotification(
+        user.getId().toString(),
+        "Password reset instructions have been sent to your email."
+    );
+  }
+
+  @Override
+  public void updateUserProfile(Long userId, UserUpdateDTO updateDTO) {
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+    // ... existing update logic ...
+
+    userRepository.save(user);
+
+    notificationService.sendSuccessNotification(
+        userId.toString(),
+        "Your profile has been updated successfully."
+    );
+  }
+}

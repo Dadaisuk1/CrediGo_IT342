@@ -17,9 +17,21 @@ import reactor.core.publisher.Mono;
 import java.util.Base64;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import lombok.extern.slf4j.Slf4j;
+import com.credigo.backend.service.NotificationService;
+import com.credigo.backend.service.EmailService;
+import com.credigo.backend.service.NotificationService.NotificationType;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+import com.credigo.backend.repository.PaymentRepository;
+import com.credigo.backend.repository.UserRepository;
+import com.credigo.backend.entity.Payment;
+import com.credigo.backend.entity.PaymentStatus;
+import com.credigo.backend.dto.PaymentRequestDTO;
+import com.credigo.backend.exception.ResourceNotFoundException;
 
 @Service
 @Slf4j
+@Transactional
 public class PaymentServiceImpl implements PaymentService {
     private final String secretKey;
     private final String successUrl;
@@ -28,6 +40,14 @@ public class PaymentServiceImpl implements PaymentService {
     private final String apiVersion;
     private final WebClient webClient;
     private final WalletService walletService;
+    @Autowired
+    private PaymentRepository paymentRepository;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private NotificationService notificationService;
+    @Autowired
+    private EmailService emailService;
 
     public PaymentServiceImpl(
             @Value("${paymongo.secret.key}") String secretKey,
@@ -412,6 +432,83 @@ public class PaymentServiceImpl implements PaymentService {
         } catch (Exception e) {
             log.error("Error checking payment status for {}: {}", paymentIntentId, e.getMessage(), e);
             return PaymentStatusResponse.failed(paymentIntentId, e.getMessage());
+        }
+    }
+
+    @Override
+    public Payment processPayment(PaymentRequestDTO paymentRequest) {
+        // ... existing payment processing logic ...
+
+        Payment payment = paymentRepository.save(newPayment);
+
+        // Send transaction confirmation email
+        String transactionDetails = String.format(
+            "<p><strong>Transaction ID:</strong> %s</p>" +
+            "<p><strong>Amount:</strong> ₱%.2f</p>" +
+            "<p><strong>Status:</strong> %s</p>" +
+            "<p><strong>Date:</strong> %s</p>",
+            payment.getId(),
+            payment.getAmount(),
+            payment.getStatus(),
+            payment.getCreatedAt()
+        );
+
+        emailService.sendTransactionConfirmationEmail(
+            payment.getUser().getEmail(),
+            payment.getUser().getUsername(),
+            transactionDetails
+        );
+
+        // Send notification based on payment status
+        switch (payment.getStatus()) {
+            case SUCCESS:
+                notificationService.sendSuccessNotification(
+                    payment.getUser().getId().toString(),
+                    String.format("Payment of ₱%.2f was successful", payment.getAmount())
+                );
+                break;
+            case PENDING:
+                notificationService.sendWarningNotification(
+                    payment.getUser().getId().toString(),
+                    String.format("Payment of ₱%.2f is pending", payment.getAmount())
+                );
+                break;
+            case FAILED:
+                notificationService.sendErrorNotification(
+                    payment.getUser().getId().toString(),
+                    String.format("Payment of ₱%.2f failed", payment.getAmount())
+                );
+                break;
+        }
+
+        return payment;
+    }
+
+    @Override
+    public void updatePaymentStatus(Long paymentId, PaymentStatus status) {
+        Payment payment = paymentRepository.findById(paymentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+
+        payment.setStatus(status);
+        paymentRepository.save(payment);
+
+        // Send status update notification
+        String message = String.format(
+            "Your payment of ₱%.2f has been %s",
+            payment.getAmount(),
+            status.name().toLowerCase()
+        );
+
+        switch (status) {
+            case SUCCESS:
+                notificationService.sendSuccessNotification(payment.getUser().getId().toString(), message);
+                break;
+            case PENDING:
+                notificationService.sendWarningNotification(payment.getUser().getId().toString(), message);
+                break;
+            case FAILED:
+                notificationService.sendErrorNotification(payment.getUser().getId().toString(), message);
+                break;
         }
     }
 }
