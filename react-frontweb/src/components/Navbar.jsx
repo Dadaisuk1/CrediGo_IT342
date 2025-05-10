@@ -36,8 +36,15 @@ function Navbar() {
 
   // Enhance logout handling
   const handleLogout = () => {
-    logout();
-    navigate('/login'); // Navigate to login page after logout
+    console.log('Navbar: Handling logout');
+    logout(); // Call the context's logout function
+
+    // Use a timeout to ensure React state updates first
+    setTimeout(() => {
+      console.log('Navbar: Navigating to login page');
+      navigate('/login');
+      window.location.reload(); // Force a full page reload as a last resort
+    }, 100);
   };
 
   // Toggle games dropdown

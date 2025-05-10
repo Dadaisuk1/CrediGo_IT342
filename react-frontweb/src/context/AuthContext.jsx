@@ -158,12 +158,25 @@ export const AuthProvider = ({ children }) => {
 
   // Logout function
   const logout = () => {
+    console.log('Logout: Clearing authentication...');
+
+    // Clear all auth-related localStorage items
     localStorage.removeItem('authToken');
+    localStorage.removeItem('token'); // In case this is also used
+    localStorage.removeItem('user');  // In case this is also used
+
+    // Clear auth state
     setUser(null);
     setToken(null);
     setWalletBalance(null);
     setError(null);
     setWalletError(false);
+
+    // Force refresh auth state just to be safe
+    console.log('Logout: Authentication cleared');
+
+    // This helps ensure the UI updates
+    window.dispatchEvent(new Event('storage'));
   };
 
   const value = {

@@ -15,8 +15,15 @@ const AdminSidebar = ({ sidebarOpen = true }) => {
   const handleLogout = () => setShowLogoutModal(true);
   const handleLogoutConfirm = () => {
     setShowLogoutModal(false);
+    console.log('AdminSidebar: Handling logout');
     logout();
-    navigate('/login');
+
+    // Use a timeout to ensure React state updates first
+    setTimeout(() => {
+      console.log('AdminSidebar: Navigating to login page');
+      navigate('/login');
+      window.location.reload(); // Force a full page reload as a last resort
+    }, 100);
   };
   const handleLogoutCancel = () => setShowLogoutModal(false);
 
