@@ -8,8 +8,11 @@ if (typeof window !== 'undefined' && !window.global) {
     window.global = window;
 }
 
-// Use the backend URL from config
-const BACKEND_URL = API_BASE_URL; // This will be 'https://credigo-it342.onrender.com' in production
+// Use the backend URL from config, ensure it doesn't have trailing slash
+const BACKEND_URL = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+
+// Debug log for WebSocket connection details
+console.log('WebSocket will connect to:', `${BACKEND_URL}/ws`);
 
 class WebSocketService {
     constructor() {
@@ -30,17 +33,22 @@ class WebSocketService {
         this.connectionAttempts = 0;
 
         try {
+            // Log the connection attempt
+            console.log(`Attempting to connect to WebSocket at ${BACKEND_URL}/ws for user ${userId}`);
+
             this.client = new Client({
                 webSocketFactory: () => new SockJS(`${BACKEND_URL}/ws`),
                 onConnect: () => {
                     this.connected = true;
                     this.connectionAttempts = 0;
-                    console.log('Connected to WebSocket');
+                    console.log(`Connected to WebSocket at ${BACKEND_URL}/ws`);
 
                     // Subscribe to user-specific notifications
                     this.client.subscribe(`/user/${userId}/topic/notifications`, (message) => {
                         try {
                             const notification = JSON.parse(message.body);
+                            console.log('Received notification:', notification);
+
                             if (this.notificationCallback) {
                                 this.notificationCallback(notification);
                             }
@@ -61,6 +69,8 @@ class WebSocketService {
                     this.client.subscribe('/topic/global', (message) => {
                         try {
                             const notification = JSON.parse(message.body);
+                            console.log('Received global notification:', notification);
+
                             if (this.notificationCallback) {
                                 this.notificationCallback(notification);
                             }
@@ -83,6 +93,15 @@ class WebSocketService {
                 },
                 onError: (error) => {
                     console.error('WebSocket Error:', error);
+                    console.error(`Failed to connect to ${BACKEND_URL}/ws`);
+
+                    // Log connection details for debugging
+                    console.log('Connection details:', {
+                        url: `${BACKEND_URL}/ws`,
+                        isProduction,
+                        connectionAttempts: this.connectionAttempts
+                    });
+
                     this.connected = false;
 
                     // Only show error toast on first attempt
@@ -142,6 +161,29 @@ class WebSocketService {
 
     isConnected() {
         return this.connected;
+    }
+
+    // Helper method to test backend API connectivity
+    async testServerConnection() {
+        try {
+            console.log(`Testing connection to backend at: ${BACKEND_URL}`);
+            const response = await fetch(`${BACKEND_URL}/actuator/health`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Backend server health status:', data);
+                return {success: true, data};
+            } else {
+                console.error('Backend server responded with error:', response.status);
+                return {success: false, error: `HTTP ${response.status}`};
+            }
+        } catch (error) {
+            console.error('Failed to connect to backend server:', error);
+            return {success: false, error: error.message};
+        }
     }
 }
 

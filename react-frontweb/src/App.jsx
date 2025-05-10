@@ -2,6 +2,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { API_BASE_URL } from './config/api.config';
 import { useAuth } from './context/AuthContext';
 import PaymentSuccess from "./pages/PaymentSuccess";
 import { websocketService } from './services/websocket';
@@ -68,6 +69,29 @@ function App() {
       websocketService.disconnect();
     };
   }, [isAuthenticated, user?.id, location.pathname]);
+
+  useEffect(() => {
+    // Test backend connectivity when app loads
+    async function testBackendConnection() {
+      console.log(`Testing connection to backend server at: ${API_BASE_URL}`);
+
+      try {
+        // Try to connect to the health endpoint
+        const result = await websocketService.testServerConnection();
+
+        if (result.success) {
+          console.log('✅ Backend server is reachable');
+        } else {
+          console.warn('⚠️ Backend server may not be reachable:', result.error);
+        }
+      } catch (err) {
+        console.error('❌ Backend connection test failed:', err);
+      }
+    }
+
+    // Run the test
+    testBackendConnection();
+  }, []);
 
   return (
     <>
