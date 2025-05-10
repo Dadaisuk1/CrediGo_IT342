@@ -49,6 +49,17 @@ public class WalletServiceImpl implements WalletService {
 
   @Override
   @Transactional // Ensure atomicity
+  public void addFundsToWallet(String username, double amount, String paymentIntentId) {
+    // Convert double to BigDecimal
+    BigDecimal amountBigDecimal = BigDecimal.valueOf(amount);
+
+    // Call the main implementation with a default description
+    addFundsToWallet(username, amountBigDecimal, paymentIntentId,
+        "Wallet top-up via admin confirmation");
+  }
+
+  @Override
+  @Transactional // Ensure atomicity
   public void addFundsToWallet(String username, BigDecimal amount, String paymentIntentId, String description) {
     log.info("Attempting to add funds for user: {}, amount: {}, paymentIntentId: {}", username, amount,
         paymentIntentId);
@@ -66,16 +77,23 @@ public class WalletServiceImpl implements WalletService {
     boolean alreadyProcessed = walletTransactionRepository.existsByDescriptionContaining(paymentIntentId);
     if (alreadyProcessed) {
       log.warn("Duplicate webhook event ignored for paymentIntentId: {}", paymentIntentId);
-
       return;
     }
 
-    // 3. Find the user's wallet
-    Wallet wallet = walletRepository.findByUser_Username(username)
-        .orElseThrow(() -> {
-          log.error("Cannot add funds: Wallet not found for username: {}", username);
-          return new RuntimeException("Wallet not found for user: " + username);
-        });
+    // 3. Find or create the user's wallet
+    Wallet wallet;
+    try {
+      wallet = walletRepository.findByUser_Username(username)
+          .orElseThrow(() -> {
+            log.error("Cannot add funds: Wallet not found for username: {}", username);
+            return new RuntimeException("Wallet not found for user: " + username);
+          });
+    } catch (RuntimeException e) {
+      // If we get here, the wallet was not found
+      log.warn("Wallet not found for user: {}. Error message: {}", username, e.getMessage());
+      throw new RuntimeException("Cannot add funds: Wallet not found for user: " + username +
+          ". Please ensure the username is correct and the user has a wallet.");
+    }
 
     // 4. Add funds to the balance
     wallet.setBalance(wallet.getBalance().add(amount));

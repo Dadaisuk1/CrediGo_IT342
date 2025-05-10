@@ -1,12 +1,12 @@
 // src/context/AuthContext.jsx
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import jwtDecode from 'jwt-decode';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 // Import API functions (update path as needed)
 import {
+  getWallet as apiGetWallet,
   loginUser as apiLogin,
-  registerUser as apiRegister,
-  getWallet as apiGetWallet
+  registerUser as apiRegister
 } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -17,18 +17,38 @@ export const AuthProvider = ({ children }) => {
   const [walletBalance, setWalletBalance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [walletError, setWalletError] = useState(false);
 
-  // Fetch wallet balance
+  // Fetch wallet balance with improved error handling
   const fetchWalletBalance = useCallback(async () => {
     if (!token) return;
+
+    // Set a timeout for wallet balance fetch
+    const walletFetchTimeout = setTimeout(() => {
+      console.log("Wallet fetch is taking too long - continuing without balance");
+      setWalletError(true);
+      // Continue showing the app even if wallet fetch times out
+      setLoading(false);
+    }, 8000); // 8 seconds timeout
+
     try {
       const response = await apiGetWallet();
+      // Clear the timeout since request completed
+      clearTimeout(walletFetchTimeout);
+
       if (response?.data?.balance !== undefined) {
         setWalletBalance(response.data.balance);
+        setWalletError(false);
       }
     } catch (err) {
+      // Clear the timeout since request completed (with error)
+      clearTimeout(walletFetchTimeout);
+
       console.error("Failed to fetch wallet balance:", err.message);
       setWalletBalance(null);
+      setWalletError(true);
+      // Don't block the app if wallet fetch fails - just continue
+      setLoading(false);
     }
   }, [token]);
 
@@ -47,11 +67,20 @@ export const AuthProvider = ({ children }) => {
             setToken(storedToken);
             setUser({
               id: decoded.id || decoded.sub,
-              username: decoded.sub,
+              username: decoded.username || decoded.sub,
               email: decoded.email || decoded.username || '',
-              roles: decoded.roles || decoded.authorities || []
+              roles: decoded.roles || decoded.authorities || [],
+              picture: decoded.picture || null // Add picture for OAuth users
             });
-            await fetchWalletBalance();
+
+            // Try to fetch wallet balance but continue even if it fails
+            try {
+              await fetchWalletBalance();
+            } catch (e) {
+              console.error("Error fetching wallet balance during initialization:", e);
+              setWalletBalance(null);
+              setWalletError(true);
+            }
           }
         } catch (e) {
           console.error("Invalid token:", e.message);
@@ -78,12 +107,21 @@ export const AuthProvider = ({ children }) => {
       setToken(newToken);
       setUser({
         id: decoded.id || decoded.sub,
-        username: decoded.sub,
+        username: decoded.username || decoded.sub,
         email: decoded.email || decoded.username || '',
-        roles: decoded.roles || decoded.authorities || []
+        roles: decoded.roles || decoded.authorities || [],
+        picture: decoded.picture || null // Add picture for OAuth users
       });
 
-      await fetchWalletBalance();
+      // Try to fetch wallet balance but continue even if it fails
+      try {
+        await fetchWalletBalance();
+      } catch (e) {
+        console.error("Error fetching wallet balance during login:", e);
+        setWalletBalance(null);
+        setWalletError(true);
+      }
+
       setLoading(false);
       return true;
     } catch (err) {
@@ -103,8 +141,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return response;
     } catch (err) {
-      const message = err.response?.data?.message || err.message || "Registration failed";
-      setError(message);
+      // Improved error handling to extract the actual error message from the response
+      console.error('Registration error:', err.response?.data || err.message);
+
+      // Extract the error message from the response body
+      // The Spring backend returns the error message directly in the response body as a string
+      const errorMessage = typeof err.response?.data === 'string'
+        ? err.response.data
+        : (err.response?.data?.message || err.message || "Registration failed");
+
+      setError(errorMessage);
       setLoading(false);
       return false;
     }
@@ -117,12 +163,14 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setWalletBalance(null);
     setError(null);
+    setWalletError(false);
   };
 
   const value = {
     user,
     token,
     walletBalance,
+    walletError,
     isAuthenticated: !!user,
     loading,
     error,
@@ -130,7 +178,9 @@ export const AuthProvider = ({ children }) => {
     logout,
     register,
     setError,
-    fetchWalletBalance
+    fetchWalletBalance,
+    setUser, // Expose setUser for OAuth2 redirect handler
+    setToken // Expose setToken for OAuth2 redirect handler
   };
 
   return (

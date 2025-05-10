@@ -2,27 +2,36 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api.config';
 
+// Get the base URL for the current environment
+const FRONTEND_URL = import.meta.env.DEV
+  ? 'http://localhost:5173'
+  : 'https://credi-go-it-342.vercel.app';
+
 // Create axios instance with base URL
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'X-Frontend-Url': FRONTEND_URL // Add custom header for PayMongo redirects
   },
-  timeout: 10000, // 10 seconds timeout
+  timeout: 30000, // Increased from 10s to 30s to prevent timeout issues
 });
 
 // Request interceptor to add JWT token to Authorization header
 apiClient.interceptors.request.use(
   (config) => {
-    // Skip token check for authentication endpoints
-    const isAuthEndpoint = config.url.includes('/api/auth/');
+    // Check if this is a public endpoint that doesn't require authentication
+    const isPublicEndpoint = config.url.includes('/api/auth/') ||
+                            config.url.includes('/api/products') ||
+                            config.url.includes('/api/platforms') ||
+                            config.url.startsWith('/api/public/');
 
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
-    } else if (!isAuthEndpoint) {
-      console.warn('No token found for protected route.');
-      // Only redirect for non-auth endpoints
+    } else if (!isPublicEndpoint) {
+      console.warn('No token found for protected route:', config.url);
+      // Only redirect for protected endpoints
       window.location.href = '/login';
     }
     return config;
@@ -50,6 +59,8 @@ apiClient.interceptors.response.use(
       } else if (status >= 500) {
         toast.error('Server error. Please try again later.');
       }
+    } else if (error.code === 'ECONNABORTED') {
+      toast.error('Request timed out. The server is taking too long to respond.');
     } else {
       toast.error('Network error. Please check your connection.');
     }
@@ -84,20 +95,21 @@ export const registerUser = (userData) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const getWallet = () => {
-  return apiClient.get('/api/wallet/me');
+  // Use a longer timeout for wallet operations which might be slower
+  return apiClient.get('/api/wallet/me', {
+    timeout: 45000, // 45 seconds timeout for wallet requests
+  });
 };
 
 /**
- * Creates a PayMongo Payment Intent for topping up the wallet.
- * @param {object} topUpData - Payment data object containing:
- *   - amount: 100.00 (required)
- *   - paymentType: 'card', 'gcash', or 'paymaya' (required)
- *   - card: { number, exp_month, exp_year, cvc, name } (for card payments)
- *   - mobileNumber: '09XXXXXXXXX' (for gcash/paymaya payments)
- * @returns {Promise<axios.Response>} The Axios response object containing the payment details.
+ * Creates a wallet top-up intent with PayMongo.
+ * @param {object} paymentData - Payment data including amount and payment type
+ * @returns {Promise<axios.Response>} The Axios response object.
  */
-export const createWalletTopUpIntent = (topUpData) => {
-  return apiClient.post('/api/payments/create-payment-intent', topUpData);
+export const createWalletTopUpIntent = (paymentData) => {
+  return apiClient.post('/api/payments/wallet/topup', paymentData, {
+    timeout: 45000, // 45 seconds timeout for payment requests
+  });
 };
 
 /**
@@ -106,7 +118,9 @@ export const createWalletTopUpIntent = (topUpData) => {
  * @returns {Promise<axios.Response>} The Axios response object with payment status.
  */
 export const checkPaymentStatus = (paymentIntentId) => {
-  return apiClient.get(`/api/payments/status/${paymentIntentId}`);
+  return apiClient.get(`/api/payments/status/${paymentIntentId}`, {
+    timeout: 45000, // 45 seconds timeout for payment status checks
+  });
 };
 
 // --- Product/Platform API Calls ---
@@ -192,26 +206,36 @@ export const removeFromWishlist = (productId) => {
  * @param {number} productId - The ID of the product.
  * @returns {Promise<axios.Response>} The Axios response object.
  */
-export const getReviewsForProduct = (productId) => {
+export const getProductReviews = (productId) => {
   return apiClient.get(`/api/products/${productId}/reviews`);
 };
 
 /**
- * Adds a review for a specific product (requires user to be authenticated and have purchased).
- * @param {number} productId - The ID of the product being reviewed.
- * @param {object} reviewData - { rating: ..., comment: ... }
+ * Submits a review for a product.
+ * @param {number} productId - The ID of the product to review.
+ * @param {object} reviewData - { rating: Number (1-5), comment: String }
  * @returns {Promise<axios.Response>} The Axios response object.
  */
-export const addReview = (productId, reviewData) => {
+export const submitProductReview = (productId, reviewData) => {
   return apiClient.post(`/api/products/${productId}/reviews`, reviewData);
 };
 
 /**
- * Deletes the authenticated user's review for a specific product.
- * @param {number} productId - The ID of the product whose review is to be deleted.
+ * Updates an existing review for a product.
+ * @param {number} productId - The ID of the product.
+ * @param {object} reviewData - { rating: Number (1-5), comment: String }
  * @returns {Promise<axios.Response>} The Axios response object.
  */
-export const deleteReview = (productId) => {
+export const updateProductReview = (productId, reviewData) => {
+  return apiClient.put(`/api/products/${productId}/reviews`, reviewData);
+};
+
+/**
+ * Deletes a user's review for a specific product.
+ * @param {number} productId - The ID of the product.
+ * @returns {Promise<axios.Response>} The Axios response object.
+ */
+export const deleteProductReview = (productId) => {
   return apiClient.delete(`/api/products/${productId}/reviews`);
 };
 
@@ -266,7 +290,7 @@ export const deleteKYCRequest = (id) => {
 
 /**
  * Manually confirms a payment for testing/demo purposes.
- * @param {object} paymentData - { paymentIntentId: '...', amount: 100.00 }
+ * @param {object} paymentData - { paymentIntentId: '...', amount: 100.00, targetUsername: '...' (optional) }
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const confirmTestPayment = (paymentData) => {

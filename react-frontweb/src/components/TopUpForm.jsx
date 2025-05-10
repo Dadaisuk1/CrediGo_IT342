@@ -1,14 +1,19 @@
 // src/components/TopUpForm.jsx
+import { useToast } from '@/hooks/use-toast';
 import React, { useRef, useState } from 'react';
-import { FaRegWindowMinimize } from 'react-icons/fa';
 import { RiArrowGoBackLine } from 'react-icons/ri';
-import { toast } from 'react-toastify';
 import { checkPaymentStatus, createWalletTopUpIntent } from '../services/api';
+
+// Get base URL for the current environment
+const BASE_URL = import.meta.env.DEV
+  ? 'http://localhost:5173'
+  : 'https://credi-go-it-342.vercel.app';
 
 /**
  * Form component for PayMongo wallet top-up payment.
  */
 function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
+  const { toast } = useToast();
   const [error, setError] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [succeeded, setSucceeded] = useState(false);
@@ -70,6 +75,12 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
         // Set success state
         setSucceeded(true);
         setError(null);
+        // Show success toast
+        toast({
+          title: "Payment Successful",
+          description: "Your wallet has been topped up successfully!",
+          variant: "default",
+        });
         // Force refresh wallet balance
         if (onPaymentSuccess) onPaymentSuccess();
       }
@@ -90,6 +101,12 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
       // Set success state
       setSucceeded(true);
       setError(null);
+      // Show success toast
+      toast({
+        title: "Payment Successful",
+        description: "Your wallet has been topped up successfully!",
+        variant: "default",
+      });
       // Force refresh wallet balance
       if (onPaymentSuccess) onPaymentSuccess();
     }
@@ -98,7 +115,7 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [paymentData?.paymentIntentId, statusCheckInterval, onPaymentSuccess]);
+  }, [paymentData?.paymentIntentId, statusCheckInterval, onPaymentSuccess, toast]);
 
   // Function to validate form based on selected payment method
   const validateForm = () => {
@@ -131,34 +148,85 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
         setError(`Please enter a valid Philippine mobile number (e.g., 09XXXXXXXXX) for ${selectedMethod === 'gcash' ? 'GCash' : 'PayMaya'}`);
         return false;
       }
+
+      // Format mobile number for API (ensure no spaces or special characters)
+      setMobileNumber(mobileNumber.replace(/\D/g, '').trim());
     }
 
     setError(null);
     return true;
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setProcessing(true);
-    setError(null);
-    setSucceeded(false);
-
-    if (!validateForm()) {
-      setProcessing(false);
+  // Function to handle GCash/PayMaya payments which involve redirects
+  const handleEWalletPayment = (data) => {
+    if (!data || !data.checkoutUrl) {
+      setError('Failed to get payment URL');
       return;
     }
 
+    // Store source ID and payment details for success page to use
+    localStorage.setItem('current_payment_source', data.paymentIntentId);
+    localStorage.setItem('current_payment_amount', amount);
+    localStorage.setItem('current_payment_method', selectedMethod);
+    localStorage.setItem('current_payment_timestamp', Date.now().toString());
+
+    // Store expected return URL to verify in success page
+    localStorage.setItem('expected_return_url', `${BASE_URL}/payment/success`);
+
+    // Show notification about redirection
+    toast({
+      title: `Redirecting to ${selectedMethod === 'gcash' ? 'GCash' : 'PayMaya'}`,
+      description: `You'll be redirected to complete the payment. After payment, you'll return to ${BASE_URL}`,
+    });
+
+    console.log(`Payment will redirect back to: ${BASE_URL}/payment/success`);
+
+    // Set a small delay to ensure toast is visible before redirect
+    setTimeout(() => {
+      // Open the checkout URL in the same tab for a smoother experience
+      window.location.href = data.checkoutUrl;
+    }, 1500);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
+
+    setCanCloseForm(false);
+    setProcessing(true);
+    setError(null);
+
     try {
-      // Prepare payment data based on selected method
+      // Prepare payment request data
       const paymentData = {
         amount: parseFloat(amount),
-        paymentType: selectedMethod
+        paymentType: selectedMethod,
       };
 
-      // Add method-specific data
+      // Add specific fields for GCash/PayMaya
+      if (selectedMethod === 'gcash' || selectedMethod === 'paymaya') {
+        paymentData.mobileNumber = mobileNumber;
+
+        // Add complete billing information for GCash/PayMaya
+        paymentData.billing = {
+          name: "CrediGo Test User",
+          email: "test@example.com",
+          phone: mobileNumber || "09123456789",
+          address: {
+            line1: "Test Address Line 1",
+            line2: "Test Address Line 2",
+            city: "Quezon City",
+            state: "Metro Manila",
+            postal_code: "1101",
+            country: "PH"
+          }
+        };
+      }
+
+      // Add card details for card payments
       if (selectedMethod === 'card') {
-        // For actual integration, you'd encrypt card data or use a direct PayMongo form
-        // Here we're just simulating for development
         paymentData.card = {
           number: cardDetails.cardNumber,
           exp_month: cardDetails.expMonth,
@@ -166,22 +234,22 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
           cvc: cardDetails.cvc,
           name: cardDetails.name
         };
-      } else if (selectedMethod === 'gcash' || selectedMethod === 'paymaya') {
-        paymentData.mobileNumber = mobileNumber;
       }
 
-      // Call backend to create a PayMongo payment intent
-      const response = await createWalletTopUpIntent(paymentData);
+      console.log('Sending payment data:', paymentData);
 
-      const data = response.data;
-      setPaymentData(data);
+      // Call the API to initiate payment
+      const response = await createWalletTopUpIntent(paymentData);
+      console.log('Payment intent response:', response.data);
+
+      setPaymentData(response.data);
 
       // Store payment intent info in localStorage for admin panel detection
-      if (data.paymentIntentId) {
-        localStorage.setItem(`payment_intent_${data.paymentIntentId}`, JSON.stringify({
-          amount: data.amount,
+      if (response.data.paymentIntentId) {
+        localStorage.setItem(`payment_intent_${response.data.paymentIntentId}`, JSON.stringify({
+          amount: response.data.amount,
           created: Date.now(),
-          status: data.status || 'awaiting_payment_method',
+          status: response.data.status || 'awaiting_payment_method',
           username: localStorage.getItem('username') || 'Anonymous User',
           paymentType: selectedMethod,
           trackingInBackground: false
@@ -189,29 +257,45 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
 
         // Broadcast the event for real-time detection
         window.dispatchEvent(new StorageEvent('storage', {
-          key: `payment_intent_${data.paymentIntentId}`,
+          key: `payment_intent_${response.data.paymentIntentId}`,
           newValue: 'created'
         }));
       }
 
       if (selectedMethod === 'card') {
         // For card payments, begin polling for status
-        startPollingPaymentStatus(data.paymentIntentId);
+        startPollingPaymentStatus(response.data.paymentIntentId);
         // After creating intent, user can close the form
         setCanCloseForm(true);
-      } else if (data.checkoutUrl) {
-        // For GCash/PayMaya, redirect to checkout URL
-        window.open(data.checkoutUrl, '_blank');
-        startPollingPaymentStatus(data.paymentIntentId);
-        // After opening checkout URL, user can close the form
-        setCanCloseForm(true);
+      } else if (response.data.checkoutUrl) {
+        // For GCash/PayMaya, handle the redirect flow
+        handleEWalletPayment(response.data);
       } else {
         setError('Payment initiation failed. Please try again.');
       }
     } catch (err) {
       console.error('Payment creation error:', err);
-      setError(err.response?.data?.message || 'Failed to initiate payment. Please try again.');
-      if (onPaymentError) onPaymentError(err.response?.data?.message || 'Payment failed');
+
+      // Improved error handling
+      let errorMessage = 'Failed to initiate payment. Please try again.';
+
+      // Check if there's a response with data
+      if (err.response && err.response.data) {
+        // If the response data is a string, use it directly
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        }
+        // If it has a message property, use that
+        else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        }
+      } else if (err.message) {
+        // Use the error message if available
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
+      if (onPaymentError) onPaymentError(errorMessage);
     } finally {
       setProcessing(false);
     }
@@ -219,6 +303,13 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
 
   // Function to cancel the payment process
   const handleCancelPayment = () => {
+    // Show cancellation toast using shadcn
+    toast({
+      title: "Payment Cancelled",
+      description: "The payment process has been cancelled",
+      variant: "destructive",
+    });
+
     // Clear polling interval
     if (statusCheckInterval) {
       clearInterval(statusCheckInterval);
@@ -239,6 +330,12 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
   };
 
   const startPollingPaymentStatus = (paymentIntentId) => {
+    // Show toast when payment status changes
+    toast({
+      title: "Processing Payment",
+      description: "Please wait while we process your payment...",
+    });
+
     // Clear any existing interval
     if (statusCheckInterval) {
       clearInterval(statusCheckInterval);
@@ -356,9 +453,10 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
       localStorage.setItem('background_payment_active', 'true');
 
       // Show a notification to the user
-      toast.info('Payment is being tracked in the background. You can check your balance later or ask an admin to confirm.', {
-        autoClose: 5000,
-        position: 'top-center'
+      toast({
+        title: "Payment Tracking",
+        description: "This payment is now being tracked in the background. You can check your balance later or ask an admin to confirm.",
+        variant: "default",
       });
 
       // Close the payment form
@@ -369,271 +467,237 @@ function TopUpForm({ onPaymentSuccess, onPaymentCancel, onPaymentError }) {
     }
   };
 
-  // Render payment method specific form fields
+  // Update renderPaymentMethodFields to better handle GCash and PayMaya options
   const renderPaymentMethodFields = () => {
     switch (selectedMethod) {
       case 'card':
         return (
-          <div className="space-y-3 mt-4 p-4 bg-credigo-dark/60 rounded-lg border border-gray-700">
-            <h3 className="font-medium text-sm">Card Details</h3>
-
-            {/* Card Number */}
+          <div className="space-y-4">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Card Number</label>
+              <label htmlFor="cardNumber" className="block text-sm text-credigo-light mb-1">Card Number</label>
               <input
                 type="text"
-                placeholder="4343434343434345"
+                id="cardNumber"
+                placeholder="1234 5678 9012 3456"
                 value={cardDetails.cardNumber}
-                onChange={(e) => setCardDetails({...cardDetails, cardNumber: e.target.value.replace(/\D/g, '').slice(0, 16)})}
-                className="w-full rounded-lg border border-gray-600 bg-credigo-dark py-2 px-4 text-credigo-light text-sm"
+                onChange={(e) => setCardDetails({...cardDetails, cardNumber: e.target.value.replace(/\D/g, '')})}
+                maxLength={16}
+                className="w-full bg-credigo-dark border-gray-600 rounded-md p-2 text-credigo-light placeholder-gray-400"
+                required
               />
-              <p className="text-xs text-gray-500 mt-1">For testing, use: 4343434343434345</p>
             </div>
 
-            {/* Expiration Date */}
-            <div className="flex space-x-4">
-              <div className="w-1/2">
-                <label className="block text-xs text-gray-400 mb-1">Expiration Month</label>
-                <select
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-1">
+                <label htmlFor="expMonth" className="block text-sm text-credigo-light mb-1">Month</label>
+                <input
+                  type="text"
+                  id="expMonth"
+                  placeholder="MM"
                   value={cardDetails.expMonth}
-                  onChange={(e) => setCardDetails({...cardDetails, expMonth: e.target.value})}
-                  className="w-full rounded-lg border border-gray-600 bg-credigo-dark py-2 px-4 text-credigo-light text-sm"
-                >
-                  <option value="">Month</option>
-                  {Array.from({length: 12}, (_, i) => {
-                    const month = i + 1;
-                    return (
-                      <option key={month} value={month}>{month.toString().padStart(2, '0')}</option>
-                    );
-                  })}
-                </select>
+                  onChange={(e) => setCardDetails({...cardDetails, expMonth: e.target.value.replace(/\D/g, '')})}
+                  maxLength={2}
+                  className="w-full bg-credigo-dark border-gray-600 rounded-md p-2 text-credigo-light placeholder-gray-400"
+                  required
+                />
               </div>
-              <div className="w-1/2">
-                <label className="block text-xs text-gray-400 mb-1">Expiration Year</label>
-                <select
+              <div className="col-span-1">
+                <label htmlFor="expYear" className="block text-sm text-credigo-light mb-1">Year</label>
+                <input
+                  type="text"
+                  id="expYear"
+                  placeholder="YY"
                   value={cardDetails.expYear}
-                  onChange={(e) => setCardDetails({...cardDetails, expYear: e.target.value})}
-                  className="w-full rounded-lg border border-gray-600 bg-credigo-dark py-2 px-4 text-credigo-light text-sm"
-                >
-                  <option value="">Year</option>
-                  {Array.from({length: 10}, (_, i) => {
-                    const year = new Date().getFullYear() + i;
-                    return (
-                      <option key={year} value={year.toString().slice(-2)}>{year}</option>
-                    );
-                  })}
-                </select>
+                  onChange={(e) => setCardDetails({...cardDetails, expYear: e.target.value.replace(/\D/g, '')})}
+                  maxLength={2}
+                  className="w-full bg-credigo-dark border-gray-600 rounded-md p-2 text-credigo-light placeholder-gray-400"
+                  required
+                />
+              </div>
+              <div className="col-span-1">
+                <label htmlFor="cvc" className="block text-sm text-credigo-light mb-1">CVC</label>
+                <input
+                  type="text"
+                  id="cvc"
+                  placeholder="123"
+                  value={cardDetails.cvc}
+                  onChange={(e) => setCardDetails({...cardDetails, cvc: e.target.value.replace(/\D/g, '')})}
+                  maxLength={4}
+                  className="w-full bg-credigo-dark border-gray-600 rounded-md p-2 text-credigo-light placeholder-gray-400"
+                  required
+                />
               </div>
             </div>
 
-            {/* CVC */}
             <div>
-              <label className="block text-xs text-gray-400 mb-1">CVC</label>
+              <label htmlFor="nameOnCard" className="block text-sm text-credigo-light mb-1">Name on Card</label>
               <input
                 type="text"
-                placeholder="123"
-                value={cardDetails.cvc}
-                onChange={(e) => setCardDetails({...cardDetails, cvc: e.target.value.replace(/\D/g, '').slice(0, 3)})}
-                className="w-full rounded-lg border border-gray-600 bg-credigo-dark py-2 px-4 text-credigo-light text-sm"
-              />
-            </div>
-
-            {/* Cardholder Name */}
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Cardholder Name</label>
-              <input
-                type="text"
-                placeholder="Name on card"
+                id="nameOnCard"
+                placeholder="John Doe"
                 value={cardDetails.name}
                 onChange={(e) => setCardDetails({...cardDetails, name: e.target.value})}
-                className="w-full rounded-lg border border-gray-600 bg-credigo-dark py-2 px-4 text-credigo-light text-sm"
+                className="w-full bg-credigo-dark border-gray-600 rounded-md p-2 text-credigo-light placeholder-gray-400"
+                required
               />
             </div>
           </div>
         );
-
       case 'gcash':
-      case 'paymaya':
         return (
-          <div className="space-y-3 mt-4 p-4 bg-credigo-dark/60 rounded-lg border border-gray-700">
-            <h3 className="font-medium text-sm">{selectedMethod === 'gcash' ? 'GCash' : 'PayMaya'} Details</h3>
+          <div className="space-y-4">
+            <div className="bg-blue-100 text-blue-800 p-4 rounded-md mb-4">
+              <p className="font-semibold">GCash Instructions:</p>
+              <ol className="list-decimal pl-4 mt-2 space-y-1">
+                <li>Enter your GCash-registered mobile number</li>
+                <li>Click "Top-up Now" to generate a payment link</li>
+                <li>You'll be redirected to GCash to complete the payment</li>
+                <li>After successful payment, your CrediGo wallet will be credited</li>
+              </ol>
+            </div>
 
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Mobile Number</label>
+              <label htmlFor="gcashNumber" className="block text-sm text-credigo-light mb-1">GCash Mobile Number</label>
               <input
                 type="text"
+                id="gcashNumber"
                 placeholder="09XXXXXXXXX"
                 value={mobileNumber}
-                onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                className="w-full rounded-lg border border-gray-600 bg-credigo-dark py-2 px-4 text-credigo-light text-sm"
+                onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ''))}
+                maxLength={11}
+                className="w-full bg-credigo-dark border-gray-600 rounded-md p-2 text-credigo-light placeholder-gray-400"
+                required
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Enter the {selectedMethod === 'gcash' ? 'GCash' : 'PayMaya'} mobile number
-              </p>
-            </div>
-
-            <div className="text-xs text-gray-500 border-t border-gray-700 pt-2 mt-2">
-              <p>After clicking Continue, you'll be directed to complete your payment in a new tab.</p>
-              <p>Do not close this window until the payment is complete.</p>
+              <p className="text-xs text-gray-400 mt-1">Enter the mobile number associated with your GCash account</p>
             </div>
           </div>
         );
+      case 'paymaya':
+        return (
+          <div className="space-y-4">
+            <div className="bg-purple-100 text-purple-800 p-4 rounded-md mb-4">
+              <p className="font-semibold">PayMaya Instructions:</p>
+              <ol className="list-decimal pl-4 mt-2 space-y-1">
+                <li>Enter your PayMaya-registered mobile number</li>
+                <li>Click "Top-up Now" to generate a payment link</li>
+                <li>You'll be redirected to PayMaya to complete the payment</li>
+                <li>After successful payment, your CrediGo wallet will be credited</li>
+              </ol>
+            </div>
 
+            <div>
+              <label htmlFor="paymayaNumber" className="block text-sm text-credigo-light mb-1">PayMaya Mobile Number</label>
+              <input
+                type="text"
+                id="paymayaNumber"
+                placeholder="09XXXXXXXXX"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ''))}
+                maxLength={11}
+                className="w-full bg-credigo-dark border-gray-600 rounded-md p-2 text-credigo-light placeholder-gray-400"
+                required
+              />
+              <p className="text-xs text-gray-400 mt-1">Enter the mobile number associated with your PayMaya account</p>
+            </div>
+          </div>
+        );
       default:
         return null;
     }
   };
 
   return (
-    <div className="space-y-4">
-      {!paymentData ? (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Amount Input */}
-          <div>
-            <label className="block text-sm font-medium text-credigo-light/80 mb-1">
-              Amount (PHP)
-            </label>
+    <form onSubmit={handleSubmit}>
+      <div className="space-y-6">
+        <div>
+          <label className="block text-sm text-credigo-light mb-2">Select Payment Method</label>
+          <div className="grid grid-cols-3 gap-2">
+            {paymentMethods.map((method) => (
+              <button
+                key={method.value}
+                type="button"
+                className={`flex flex-col items-center justify-center p-3 rounded-md border transition-all ${
+                  selectedMethod === method.value
+                    ? 'border-credigo-button bg-credigo-button bg-opacity-10'
+                    : 'border-gray-600 hover:border-gray-500'
+                }`}
+                onClick={() => setSelectedMethod(method.value)}
+              >
+                {method.value === 'card' && (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                )}
+                {method.value === 'gcash' && (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mb-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+                {method.value === 'paymaya' && (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mb-1 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                )}
+                <span className="text-xs mt-1">{method.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm text-credigo-light mb-2">Amount (PHP)</label>
+          <div className="relative">
+            <span className="absolute left-3 top-2 text-gray-400">₱</span>
             <input
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               min="50"
-              step="0.01"
-              placeholder="Minimum PHP 50.00"
+              step="1"
+              placeholder="Enter amount (min ₱50)"
+              className="w-full pl-8 bg-credigo-dark border-gray-600 rounded-md p-2 text-credigo-light placeholder-gray-400"
               required
-              className="w-full rounded-lg border border-gray-600 bg-credigo-dark py-2 px-4 text-credigo-light"
             />
           </div>
+          <p className="text-xs text-gray-400 mt-1">Minimum top-up amount is ₱50.00</p>
+        </div>
 
-          {/* Payment Method Selector */}
-          <div>
-            <label className="block text-sm font-medium text-credigo-light/80 mb-1">
-              Choose Payment Method
-            </label>
-            <div className="flex space-x-4 mb-3">
-              {paymentMethods.map((method) => (
-                <label key={method.value} className={`flex items-center px-3 py-2 rounded-lg cursor-pointer border border-gray-600 bg-credigo-dark text-credigo-light transition-colors duration-150 ${selectedMethod === method.value ? 'ring-2 ring-credigo-button border-credigo-button bg-credigo-button/10' : ''}`}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value={method.value}
-                    checked={selectedMethod === method.value}
-                    onChange={() => setSelectedMethod(method.value)}
-                    className="form-radio h-4 w-4 text-credigo-button mr-2"
-                  />
-                  {method.label}
-                </label>
-              ))}
-            </div>
-          </div>
+        {renderPaymentMethodFields()}
 
-          {/* Render Payment Method Specific Fields */}
-          {renderPaymentMethodFields()}
-
-          {/* Display Messages */}
-          {error && <div className="text-red-400 text-sm font-medium p-3 bg-red-900/20 border border-red-900 rounded-lg">{error}</div>}
-
-          {/* Submit Button */}
+        <div className="mt-4">
           <button
-            disabled={processing || succeeded || !amount}
-            className={`w-full flex justify-center px-4 py-2 text-sm font-semibold text-credigo-dark bg-credigo-button border border-transparent rounded-lg shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-credigo-input-bg focus:ring-credigo-button transition duration-150 ease-in-out ${(processing || succeeded || !amount) ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {processing ? 'Processing...' : 'Continue'}
-          </button>
-
-          {/* Cancel Button */}
-          <button
-            type="button"
-            onClick={handleCancelPayment}
+            type="submit"
             disabled={processing}
-            className="w-full flex justify-center px-4 py-2 text-sm font-medium text-gray-300 bg-gray-600 border border-transparent rounded-lg shadow-sm hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-credigo-input-bg focus:ring-gray-500 transition duration-150 ease-in-out mt-2 disabled:opacity-50"
+            className={`w-full py-2 rounded text-center ${
+              processing ? 'bg-gray-500' : 'bg-credigo-button hover:bg-opacity-90'
+            } text-credigo-dark font-medium`}
           >
-            Cancel
+            {processing ? 'Processing...' : 'Top-up Now'}
           </button>
-        </form>
-      ) : (
-        <div className="space-y-4">
-          <div className="bg-credigo-dark/50 rounded-lg p-4 border border-credigo-button/30">
-            <h3 className="text-lg font-semibold mb-2">
-              {succeeded ? 'Payment Completed' : 'Payment In Progress'}
-            </h3>
-            <p className="text-sm mb-4">
-              {succeeded
-                ? 'Your payment has been confirmed and your wallet has been credited.'
-                : selectedMethod === 'card'
-                  ? 'Please complete payment in the secure form.'
-                  : 'Please complete payment in the new tab. Do not close this page until complete.'}
-            </p>
-            <div className="border-t border-gray-700 pt-2">
-              <div className="flex justify-between text-sm">
-                <span>Payment ID:</span>
-                <span className="font-mono text-xs text-credigo-button">{paymentData.paymentIntentId}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Amount:</span>
-                <span>{new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(paymentData.amount/100)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Status:</span>
-                <span className={`capitalize ${succeeded ? 'text-green-400' : ''}`}>
-                  {succeeded ? 'Completed' : paymentData.status}
-                </span>
-              </div>
-            </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/40 rounded-lg p-3 text-red-300 text-sm mt-4">
+            {error}
           </div>
+        )}
 
-          {succeeded && (
-            <div className="text-green-400 text-sm font-medium p-3 bg-green-900/20 border border-green-900 rounded-lg">
-              Payment completed successfully! Your wallet has been credited.
-            </div>
-          )}
-
-          {error && (
-            <div className="text-red-400 text-sm font-medium p-3 bg-red-900/20 border border-red-900 rounded-lg">
-              {error}
-            </div>
-          )}
-
-          {!succeeded && !error && (
-            <div className="animate-pulse flex items-center justify-center space-x-2 text-sm text-gray-400">
-              <div className="w-2 h-2 bg-credigo-button rounded-full"></div>
-              <div className="w-2 h-2 bg-credigo-button rounded-full"></div>
-              <div className="w-2 h-2 bg-credigo-button rounded-full"></div>
-              <span>Checking payment status...</span>
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row gap-2">
-            {/* Show continue in background button if payment is in progress */}
-            {!succeeded && !error && canCloseForm && (
-              <button
-                type="button"
-                onClick={moveToBackground}
-                className="flex-1 justify-center py-2 px-4 border border-credigo-button bg-transparent rounded-md shadow-sm text-sm font-medium text-credigo-button hover:bg-credigo-button/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-credigo-input-bg focus:ring-credigo-button flex items-center"
-              >
-                <FaRegWindowMinimize className="mr-2" />
-                Continue in Background
-              </button>
-            )}
-
+        {canCloseForm && !succeeded && (
+          <div className="mt-4 bg-blue-500/20 border border-blue-500/40 rounded-lg p-3 text-blue-300 text-sm">
+            <p className="font-medium mb-2">Payment in process</p>
+            <p>You can complete the payment in a new browser window and continue browsing the site. Your wallet will be updated automatically.</p>
             <button
               type="button"
-              onClick={handleCancelPayment}
-              className="flex-1 flex justify-center items-center py-2 px-4 border border-gray-600 bg-gray-700 rounded-md shadow-sm text-sm font-medium text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-credigo-input-bg focus:ring-gray-500"
+              onClick={moveToBackground}
+              className="mt-2 text-blue-300 hover:text-blue-100 flex items-center text-sm font-medium"
             >
-              {succeeded ? (
-                <>Close</>
-              ) : (
-                <>
-                  <RiArrowGoBackLine className="mr-2" />
-                  {canCloseForm ? 'Back to Form' : 'Cancel Payment Process'}
-                </>
-              )}
+              <span>Move payment to background</span>
+              <RiArrowGoBackLine className="ml-1" />
             </button>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </form>
   );
 }
 

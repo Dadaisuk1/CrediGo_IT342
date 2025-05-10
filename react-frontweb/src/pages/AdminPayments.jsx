@@ -1,17 +1,59 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RiRefreshLine } from 'react-icons/ri';
 import { toast } from 'react-toastify';
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
+import { Button } from "../components/ui/button";
+import { ScrollArea } from "../components/ui/scroll-area";
 import { confirmTestPayment } from '../services/api';
 
 const AdminPayments = () => {
   const [paymentIntentId, setPaymentIntentId] = useState('');
   const [amount, setAmount] = useState('');
+  const [targetUsername, setTargetUsername] = useState('');
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [stoppingPolling, setStoppingPolling] = useState(false);
   const [pendingPayments, setPendingPayments] = useState([]);
   const [loadingPending, setLoadingPending] = useState(false);
+  const [userList, setUserList] = useState([]);
+  const [validationError, setValidationError] = useState(null);
+
+  // Load payment history from localStorage on component mount
+  useEffect(() => {
+    try {
+      const storedHistory = localStorage.getItem('confirmed_payments_history');
+      if (storedHistory) {
+        setPaymentHistory(JSON.parse(storedHistory));
+      }
+    } catch (error) {
+      console.error('Error loading payment history:', error);
+    }
+  }, []);
+
+  // Helper function to mark a payment as confirmed in localStorage
+  const markPaymentAsConfirmed = (paymentId, amountValue, status = 'success') => {
+    // Add to confirmed payments record in localStorage
+    const confirmedKey = 'confirmed_payment_' + paymentId;
+    localStorage.setItem(confirmedKey, 'true');
+
+    // Add to payment history
+    const newPayment = {
+      id: Date.now(),
+      paymentIntentId: paymentId,
+      amount: typeof amountValue === 'number' ? amountValue : parseFloat(amountValue),
+      timestamp: new Date().toISOString(),
+      status
+    };
+
+    const updatedHistory = [newPayment, ...paymentHistory];
+    setPaymentHistory(updatedHistory);
+
+    // Also store the complete history in localStorage
+    localStorage.setItem('confirmed_payments_history', JSON.stringify(updatedHistory));
+
+    return newPayment;
+  };
 
   // Function to fetch pending payments
   const fetchPendingPayments = useCallback(async () => {
@@ -24,17 +66,26 @@ const AdminPayments = () => {
       // Simulate API response for demo - replace with actual API in production
       // This simulates checking localStorage for any payment intents created by users
       const pendingPaymentIds = [];
+
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('payment_intent_')) {
           try {
             const data = JSON.parse(localStorage.getItem(key));
+            const paymentId = key.replace('payment_intent_', '');
+
+            // Check if this payment is already confirmed by checking localStorage
+            const confirmedKey = 'confirmed_payment_' + paymentId;
+            if (localStorage.getItem(confirmedKey) === 'true') {
+              continue; // Skip confirmed payments
+            }
+
             // Include both awaiting payments and background tracking payments
             if (data && (data.status === 'awaiting_payment_method' ||
                          data.trackingInBackground === true ||
                          data.status === 'processing')) {
               pendingPaymentIds.push({
-                id: key.replace('payment_intent_', ''),
+                id: paymentId,
                 amount: data.amount,
                 created: data.created || Date.now(),
                 username: data.username || 'Unknown',
@@ -57,7 +108,7 @@ const AdminPayments = () => {
     } finally {
       setLoadingPending(false);
     }
-  }, []);
+  }, [paymentHistory]);
 
   // Set up polling for pending payments
   useEffect(() => {
@@ -88,71 +139,103 @@ const AdminPayments = () => {
     };
   }, [fetchPendingPayments]);
 
+  // Add useEffect to fetch list of valid usernames
+  useEffect(() => {
+    // In a real app, this would fetch actual users from your API
+    // For demo purposes, we'll hard-code some valid users
+    setUserList(['testuser', 'admin', 'john_doe']);
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setValidationError(null);
+    setProcessing(true);
+    setResult(null);
 
     if (!paymentIntentId || !amount) {
-      toast.error('Please fill in all fields');
+      toast.error('Please enter both payment ID and amount');
+      setProcessing(false);
       return;
     }
 
-    setProcessing(true);
-    setResult(null);
+    // Validate username if provided
+    if (targetUsername && !userList.includes(targetUsername)) {
+      setValidationError(`Warning: Username "${targetUsername}" may not exist in the system. The payment might fail.`);
+      // Continue anyway, but with a warning
+    }
 
     try {
       const response = await confirmTestPayment({
         paymentIntentId,
-        amount: parseFloat(amount)
+        amount: parseFloat(amount),
+        targetUsername: targetUsername || 'testuser' // Use testuser as fallback instead of Anonymous User
       });
 
-      // Add to history
-      const newPayment = {
-        id: Date.now(),
-        paymentIntentId,
-        amount: parseFloat(amount),
-        timestamp: new Date().toISOString(),
-        status: 'success'
-      };
+      setResult({
+        success: true,
+        message: response.data.message || 'Payment confirmed successfully!',
+        details: response.data
+      });
 
-      setPaymentHistory(prev => [newPayment, ...prev]);
-      setResult({ success: true, data: response.data });
-      toast.success('Payment confirmed successfully!');
-
-      // Remove this payment from pending list if it exists
-      setPendingPayments(prev => prev.filter(p => p.id !== paymentIntentId));
-
-      // Reset form
+      // Clear form
       setPaymentIntentId('');
       setAmount('');
+      if (response.data.success) {
+        toast.success(`Payment confirmed! ${targetUsername ? `Funds added to ${targetUsername}'s wallet.` : ''}`);
+      }
     } catch (error) {
-      console.error('Payment confirmation error:', error);
+      console.error('Error confirming payment:', error);
+
+      // Extract meaningful error message from backend
+      let errorMessage = error.message;
+      if (error.response) {
+        // If it's a backend error with data
+        if (error.response.data && typeof error.response.data === 'string' && error.response.data.includes('Wallet not found')) {
+          errorMessage = `User "${targetUsername || 'Anonymous User'}" doesn't have a wallet. Please use an existing username.`;
+        } else if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else {
+          errorMessage = `Server error (${error.response.status}): ${error.response.statusText}`;
+        }
+      }
+
       setResult({
         success: false,
-        error: error.response?.data?.message || 'Failed to confirm payment'
+        message: errorMessage,
+        error: error.message
       });
-      toast.error('Failed to confirm payment');
+      toast.error(`Failed to confirm payment: ${errorMessage}`);
     } finally {
       setProcessing(false);
     }
   };
 
   const handleQuickConfirm = async (payment) => {
-    setPaymentIntentId(payment.id);
-    setAmount(payment.amount / 100); // Convert from cents to whole amount
+    if (processing) return;
 
-    // Automatically submit after short delay to allow state update
-    setTimeout(() => {
-      handleSubmit({ preventDefault: () => {} });
+    try {
+      // Extract payment information
+      const { id, amount } = payment;
 
-      // Also stop polling immediately
-      localStorage.setItem('stopPolling_' + payment.id, Date.now().toString());
+      // Convert amount from cents to actual amount
+      const actualAmount = amount / 100;
 
-      // Broadcast the event
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: 'stopPolling_' + payment.id,
-        newValue: Date.now().toString()
-      }));
-    }, 100);
+      // Update the form fields with the payment data
+      setPaymentIntentId(id);
+      setAmount(actualAmount.toString());
+
+      // Ensure the username is always populated
+      // Use the payment's username if available, or use one of the valid test users
+      const username = payment.username || userList[0] || 'testuser';
+      setTargetUsername(username);
+
+      // Show toast to indicate form was populated
+      toast.info(`Payment details loaded into form. Click "Confirm Payment" to process.`);
+
+    } catch (error) {
+      console.error('Error loading payment details:', error);
+      toast.error(`Failed to load payment details: ${error.message}`);
+    }
   };
 
   const forceClosePolling = async () => {
@@ -172,16 +255,9 @@ const AdminPayments = () => {
             amount: parseFloat(amount)
           });
 
-          // Add to history
-          const newPayment = {
-            id: Date.now(),
-            paymentIntentId,
-            amount: parseFloat(amount),
-            timestamp: new Date().toISOString(),
-            status: 'success (manual stop)'
-          };
+          // Mark as confirmed in localStorage
+          markPaymentAsConfirmed(paymentIntentId, amount, 'success (manual stop)');
 
-          setPaymentHistory(prev => [newPayment, ...prev]);
           setResult({
             success: true,
             data: {
@@ -189,6 +265,9 @@ const AdminPayments = () => {
               paymentIntentId
             }
           });
+
+          // Remove this payment from pending list if it exists
+          setPendingPayments(prev => prev.filter(p => p.id !== paymentIntentId));
         } catch (error) {
           console.warn('Could not confirm payment automatically when stopping polling:', error);
           // Continue with stopping the polling even if confirmation fails
@@ -233,14 +312,16 @@ const AdminPayments = () => {
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-800">Pending Payments</h2>
-          <button
+          <Button
             onClick={fetchPendingPayments}
             disabled={loadingPending}
-            className="flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium text-gray-700"
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
           >
-            <RiRefreshLine className={`mr-1 ${loadingPending ? 'animate-spin' : ''}`} />
+            <RiRefreshLine className={`${loadingPending ? 'animate-spin' : ''}`} />
             Refresh
-          </button>
+          </Button>
         </div>
 
         {pendingPayments.length === 0 ? (
@@ -280,12 +361,13 @@ const AdminPayments = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <button
+                      <Button
                         onClick={() => handleQuickConfirm(payment)}
-                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-sm font-medium"
+                        variant="default"
+                        size="sm"
                       >
-                        Confirm & Stop
-                      </button>
+                        Load Details
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -303,6 +385,15 @@ const AdminPayments = () => {
             Use this form to manually confirm payments for demonstration purposes.
             This will credit the user's wallet without requiring actual payment processing.
           </p>
+
+          {validationError && (
+            <Alert variant="warning" className="mb-4 bg-yellow-50 border-yellow-200">
+              <AlertTitle className="text-yellow-800">Warning</AlertTitle>
+              <AlertDescription className="text-yellow-700">
+                {validationError}
+              </AlertDescription>
+            </Alert>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -341,36 +432,56 @@ const AdminPayments = () => {
               </p>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Target Username
+              </label>
+              <input
+                type="text"
+                value={targetUsername}
+                onChange={(e) => {
+                  setTargetUsername(e.target.value);
+                  setValidationError(null); // Clear validation error when input changes
+                }}
+                placeholder="Enter a valid username"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Enter a valid username that exists in the system. For testing, try: {userList.join(', ')}
+              </p>
+            </div>
+
             <div className="flex space-x-2">
-              <button
+              <Button
                 type="submit"
                 disabled={processing}
-                className={`flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                  processing ? 'opacity-70 cursor-not-allowed' : ''
-                }`}
+                variant="default"
+                className="flex-1"
               >
                 {processing ? 'Processing...' : 'Confirm Payment'}
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="button"
                 onClick={forceClosePolling}
                 disabled={stoppingPolling || !paymentIntentId}
-                className={`flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
-                  stoppingPolling || !paymentIntentId ? 'opacity-70 cursor-not-allowed' : ''
-                }`}
+                variant="destructive"
+                className="flex-1"
               >
                 {stoppingPolling ? 'Stopping...' : 'Stop Polling'}
-              </button>
+              </Button>
             </div>
           </form>
 
           {result && (
-            <div className={`mt-4 p-4 rounded-md ${result.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-              <p className="font-medium">{result.success ? 'Success!' : 'Error'}</p>
-              <pre className="mt-2 text-sm overflow-auto max-h-40">
-                {JSON.stringify(result.success ? result.data : result.error, null, 2)}
-              </pre>
+            <div className={`mt-4 p-4 rounded-md ${result.success ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+              <p className="font-medium mb-2">{result.success ? 'Success!' : 'Error'}</p>
+              <p className="mb-2">{result.message}</p>
+              {result.success && result.details && (
+                <pre className="mt-2 text-sm overflow-auto max-h-40 bg-white/50 p-2 rounded">
+                  {JSON.stringify(result.details, null, 2)}
+                </pre>
+              )}
             </div>
           )}
         </div>
@@ -382,32 +493,34 @@ const AdminPayments = () => {
           {paymentHistory.length === 0 ? (
             <p className="text-gray-500 text-center py-8">No payment confirmations yet</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paymentHistory.map((payment) => (
-                    <tr key={payment.id}>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-600">
-                        {payment.paymentIntentId.substring(0, 16)}...
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">
-                        PHP {payment.amount.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(payment.timestamp).toLocaleTimeString()}
-                      </td>
+            <ScrollArea className="h-[400px] rounded-md border border-gray-200">
+              <div className="p-1">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment ID</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {paymentHistory.map((payment) => (
+                      <tr key={payment.id}>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-600">
+                          {payment.paymentIntentId.substring(0, 16)}...
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">
+                          PHP {payment.amount.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(payment.timestamp).toLocaleTimeString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ScrollArea>
           )}
         </div>
       </div>
@@ -417,9 +530,9 @@ const AdminPayments = () => {
         <h3 className="text-lg font-medium text-blue-800 mb-2">How to Use</h3>
         <ol className="list-decimal list-inside text-blue-700 space-y-2">
           <li>When a user creates a payment, it will automatically appear in the "Pending Payments" section</li>
-          <li>Click the "Confirm & Stop" button to process payment and stop polling in one click</li>
-          <li>For manual control, copy the Payment Intent ID and amount from the pending payments table</li>
-          <li>Paste them into the manual form below and click "Confirm Payment"</li>
+          <li>Click the "Load Details" button to populate the form with payment information</li>
+          <li>Enter a <strong>valid username</strong> that exists in the system (e.g., testuser, admin)</li>
+          <li>Click "Confirm Payment" to process the payment and add funds to the wallet</li>
           <li>If polling continues after confirmation, use the "Stop Polling" button</li>
         </ol>
         <p className="mt-4 text-sm text-blue-600">

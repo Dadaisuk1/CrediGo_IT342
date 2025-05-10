@@ -15,11 +15,13 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.http.HttpHeaders; // Needed for @RequestHeader
 
 import java.math.BigDecimal;
@@ -30,6 +32,9 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat; // Requires Java 17+
+import java.util.HashMap;
+import org.springframework.web.reactive.function.client.WebClient;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -42,12 +47,14 @@ public class PaymentController {
     private final WalletService walletService;
     private final PaymentService paymentService;
     private final ObjectMapper objectMapper;
+    private final WebClient webClient;
 
     @Autowired
-    public PaymentController(WalletService walletService, PaymentService paymentService, ObjectMapper objectMapper) {
+    public PaymentController(WalletService walletService, PaymentService paymentService, ObjectMapper objectMapper, WebClient webClient) {
         this.walletService = walletService;
         this.paymentService = paymentService;
         this.objectMapper = objectMapper;
+        this.webClient = webClient;
         log.info("PayMongo Webhook Secret Key Loaded: {}", paymongoWebhookSecretKey != null && !paymongoWebhookSecretKey.isEmpty() ? "Yes" : "No");
     }
 
@@ -153,6 +160,9 @@ public class PaymentController {
                 log.info("Processing {} event.", eventType);
             } else if ("payment_intent.succeeded".equals(eventType)) {
                 processSuccessfulPaymentIntent(attributes);
+                log.info("Processing {} event.", eventType);
+            } else if ("source.chargeable".equals(eventType)) {
+                processSourceChargeable(attributes);
                 log.info("Processing {} event.", eventType);
             } else {
                 log.info("Ignoring PayMongo event type: {}", eventType);
@@ -325,6 +335,123 @@ public class PaymentController {
     }
 
     /**
+     * Helper method to process source.chargeable event from PayMongo webhook.
+     * Creates a Payment using the chargeable source for GCash and PayMaya.
+     *
+     * @param attributes The attributes map from the webhook event data.
+     */
+    private void processSourceChargeable(Map<String, Object> attributes) {
+        String eventType = attributes.get("type") instanceof String ? (String) attributes.get("type") : null;
+
+        if (!"source.chargeable".equals(eventType)) {
+            log.warn("Ignoring non-source.chargeable event: {}", eventType);
+            return;
+        }
+
+        try {
+            Map<String, Object> eventData = attributes.get("data") instanceof Map
+                ? (Map<String, Object>) attributes.get("data")
+                : null;
+
+            if (eventData == null) {
+                log.error("Missing data in source.chargeable event");
+                return;
+            }
+
+            String sourceId = eventData.get("id") instanceof String ? (String) eventData.get("id") : null;
+            if (sourceId == null) {
+                log.error("Missing source ID in source.chargeable event");
+                return;
+            }
+
+            Map<String, Object> sourceAttributes = eventData.get("attributes") instanceof Map
+                ? (Map<String, Object>) eventData.get("attributes")
+                : null;
+
+            if (sourceAttributes == null) {
+                log.error("Missing attributes in source.chargeable event data");
+                return;
+            }
+
+            String sourceType = sourceAttributes.get("type") instanceof String ? (String) sourceAttributes.get("type") : null;
+            if (!"gcash".equals(sourceType) && !"paymaya".equals(sourceType) && !"grab_pay".equals(sourceType)) {
+                log.warn("Unexpected source type in source.chargeable event: {}", sourceType);
+                return;
+            }
+
+            Long amount = null;
+            Object amountObj = sourceAttributes.get("amount");
+            if (amountObj instanceof Number) {
+                amount = ((Number) amountObj).longValue();
+            } else {
+                log.error("Missing or invalid amount in source.chargeable event");
+                return;
+            }
+
+            String currency = sourceAttributes.get("currency") instanceof String ? (String) sourceAttributes.get("currency") : "PHP";
+
+            Map<String, Object> metadata = sourceAttributes.get("metadata") instanceof Map
+                ? (Map<String, Object>) sourceAttributes.get("metadata")
+                : new HashMap<>();
+
+            String username = metadata.get("credigo_username") instanceof String
+                ? (String) metadata.get("credigo_username")
+                : null;
+
+            // Prepare payment request
+            Map<String, Object> paymentAttributes = new HashMap<>();
+            paymentAttributes.put("amount", amount);
+            paymentAttributes.put("currency", currency);
+            paymentAttributes.put("description", "Wallet top-up via " + sourceType);
+            paymentAttributes.put("source", Map.of("id", sourceId, "type", "source"));
+
+            Map<String, Object> paymentRequestBody = new HashMap<>();
+            paymentRequestBody.put("data", Map.of("attributes", paymentAttributes));
+
+            log.info("Creating payment for chargeable source: {} (type: {}, amount: {})",
+                sourceId, sourceType, amount);
+
+            // Create payment
+            Map<String, Object> paymentResponse = webClient.post()
+                    .uri("/payments")
+                    .bodyValue(paymentRequestBody)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
+
+            if (paymentResponse == null || !(paymentResponse.get("data") instanceof Map)) {
+                log.error("Invalid payment response from PayMongo after source.chargeable");
+                return;
+            }
+
+            Map<String, Object> paymentData = (Map<String, Object>) paymentResponse.get("data");
+            String paymentId = paymentData.get("id") instanceof String ? (String) paymentData.get("id") : null;
+
+            if (paymentId != null && username != null) {
+                log.info("Successfully created payment {} for source {} (user: {})",
+                    paymentId, sourceId, username);
+
+                // Credit wallet if username is available
+                try {
+                    BigDecimal amountDecimal = BigDecimal.valueOf(amount).divide(new BigDecimal("100"));
+                    walletService.addFundsToWallet(username, amountDecimal, paymentId,
+                        "Wallet top-up via " + sourceType);
+                    log.info("Successfully credited wallet for user {} via {} (payment: {})",
+                        username, sourceType, paymentId);
+                } catch (Exception e) {
+                    log.error("Failed to credit wallet for user {} from payment {}: {}",
+                        username, paymentId, e.getMessage(), e);
+                }
+            } else {
+                log.warn("Created payment for source {} but unable to credit wallet (paymentId: {}, username: {})",
+                    sourceId, paymentId, username);
+            }
+        } catch (Exception e) {
+            log.error("Error processing source.chargeable event: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
      * Verifies the PayMongo webhook signature.
      *
      * @param payload         The raw request body payload.
@@ -464,57 +591,50 @@ public class PaymentController {
                 || "anonymousUser".equals(authentication.getPrincipal())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated.");
         }
-        String username = authentication.getName();
+        String adminUsername = authentication.getName();
 
         String paymentIntentId = (String) requestBody.get("paymentIntentId");
-        if (paymentIntentId == null || paymentIntentId.isBlank()) {
-            return ResponseEntity.badRequest().body("Missing paymentIntentId");
+        if (paymentIntentId == null) {
+            return ResponseEntity.badRequest().body("Payment intent ID is required.");
         }
 
-        BigDecimal amount = null;
+        // Get the target username (the user who should receive the funds)
+        String targetUsername = (String) requestBody.get("targetUsername");
+        // If targetUsername is not provided, default to the admin's username
+        if (targetUsername == null || targetUsername.trim().isEmpty()) {
+            targetUsername = adminUsername;
+        }
+
+        String amountStr = requestBody.get("amount") != null ? requestBody.get("amount").toString() : null;
+        if (amountStr == null) {
+            return ResponseEntity.badRequest().body("Amount is required.");
+        }
+
+        double amount;
         try {
-            if (requestBody.get("amount") instanceof Number) {
-                double amountValue = ((Number) requestBody.get("amount")).doubleValue();
-                amount = BigDecimal.valueOf(amountValue);
-            } else if (requestBody.get("amount") instanceof String) {
-                amount = new BigDecimal((String) requestBody.get("amount"));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Invalid amount format");
+            amount = Double.parseDouble(amountStr);
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().body("Invalid amount format.");
         }
 
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            return ResponseEntity.badRequest().body("Amount must be positive");
-        }
+        log.info("Test endpoint: Manually crediting user {} wallet with {} PHP, paymentIntentId: {}",
+                targetUsername, amount, paymentIntentId);
 
         try {
-            // Check if amount is in centavos (large value) and convert to PHP if needed
-            boolean isAmountInCentavos = amount.compareTo(new BigDecimal("1000")) > 0;
-            BigDecimal phpAmount = isAmountInCentavos
-                ? amount.divide(new BigDecimal("100"))
-                : amount;
+            // Generate a unique payment ID for each test transaction to avoid duplicate checks
+            // Combine the original ID with a timestamp to make it unique
+            String uniqueTestPaymentId = paymentIntentId + "_test_" + System.currentTimeMillis();
 
-            log.info("Test endpoint: Manually crediting user {} wallet with {} PHP, paymentIntentId: {}",
-                    username, phpAmount, paymentIntentId);
-
-            // Add funds to wallet
-            walletService.addFundsToWallet(
-                username,
-                phpAmount,
-                paymentIntentId,
-                "Test wallet top-up via PayMongo"
-            );
-
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Wallet credited successfully",
-                "amount", phpAmount,
-                "paymentIntentId", paymentIntentId
-            ));
+            // Add funds to the targetUsername's wallet, not the admin's
+            walletService.addFundsToWallet(targetUsername, amount, uniqueTestPaymentId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Payment confirmed and " + amount + " PHP added to " + targetUsername + "'s wallet.");
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Error in test confirm payment: {}", e.getMessage(), e);
+            log.error("Error confirming payment: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to process test payment: " + e.getMessage());
+                    .body("Could not confirm payment: " + e.getMessage());
         }
     }
 
@@ -542,6 +662,52 @@ public class PaymentController {
                     "status", "error",
                     "message", "Failed to check payment status: " + e.getMessage()
                 ));
+        }
+    }
+
+    // Add a helper method to get the base URL for redirects
+    private String getRedirectBaseUrl(HttpServletRequest request) {
+        // Check if the request contains our custom header
+        String frontendUrl = request.getHeader("X-Frontend-Url");
+
+        if (frontendUrl != null && !frontendUrl.isEmpty()) {
+            log.info("Using frontend URL from header: {}", frontendUrl);
+            return frontendUrl;
+        }
+
+        // Default fallback cases
+        String serverName = request.getServerName();
+        if (serverName.equals("localhost") || serverName.equals("127.0.0.1")) {
+            return "http://localhost:5173";
+        } else {
+            return "https://credi-go-it-342.vercel.app";
+        }
+    }
+
+    @PostMapping("/wallet/topup")
+    public ResponseEntity<?> createWalletTopUp(
+            @RequestBody WalletTopUpRequest topUpRequest,
+            Authentication authentication,
+            HttpServletRequest request) {
+
+        String username = authentication.getName();
+        log.info("Creating wallet top up for user: {}, amount: {}, type: {}",
+                username, topUpRequest.getAmount(), topUpRequest.getPaymentType());
+
+        try {
+            // Set redirect URLs based on the request origin
+            String baseRedirectUrl = getRedirectBaseUrl(request);
+            topUpRequest.setSuccessRedirectUrl(baseRedirectUrl + "/payment/success");
+            topUpRequest.setCancelRedirectUrl(baseRedirectUrl + "/payment/cancel");
+
+            log.info("Setting redirect URLs - success: {}, cancel: {}",
+                    topUpRequest.getSuccessRedirectUrl(), topUpRequest.getCancelRedirectUrl());
+
+            PaymentResponse response = paymentService.createWalletTopUpPaymentIntent(topUpRequest, username);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error creating wallet top-up: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 

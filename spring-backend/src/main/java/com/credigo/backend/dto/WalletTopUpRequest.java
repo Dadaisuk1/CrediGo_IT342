@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 /**
  * DTO representing the request from a user to add funds to their wallet.
@@ -32,5 +33,10 @@ public class WalletTopUpRequest {
   // Currency is often determined server-side (e.g., always PHP for this app),
   // but could be included if multiple currencies were supported.
   // private String currency = "PHP";
+
+  private Map<String, Object> billing;
+  private String mobileNumber;
+  private String successRedirectUrl;
+  private String cancelRedirectUrl;
 
 }

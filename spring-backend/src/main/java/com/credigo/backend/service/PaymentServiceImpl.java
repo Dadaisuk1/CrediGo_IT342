@@ -17,9 +17,14 @@ import reactor.core.publisher.Mono;
 import java.util.Base64;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.core.env.Environment;
+import com.credigo.backend.repository.UserRepository;
 
 @Service
 @Slf4j
+@Transactional
 public class PaymentServiceImpl implements PaymentService {
     private final String secretKey;
     private final String successUrl;
@@ -28,6 +33,10 @@ public class PaymentServiceImpl implements PaymentService {
     private final String apiVersion;
     private final WebClient webClient;
     private final WalletService walletService;
+    private final Environment environment;
+
+    @Autowired
+    private UserRepository userRepository;
 
     public PaymentServiceImpl(
             @Value("${paymongo.secret.key}") String secretKey,
@@ -36,18 +45,28 @@ public class PaymentServiceImpl implements PaymentService {
             @Value("${paymongo.cancel.url}") String cancelUrl,
             @Value("${paymongo.webhook.url}") String webhookUrl,
             @Value("${paymongo.api.version}") String apiVersion,
-            WalletService walletService) {
+            WalletService walletService,
+            Environment environment) {
 
         if (secretKey == null || secretKey.trim().isEmpty()) {
             throw new IllegalArgumentException("PayMongo secret key is not configured.");
         }
 
         this.secretKey = secretKey;
-        this.successUrl = successUrl;
-        this.cancelUrl = cancelUrl;
+        this.environment = environment;
+
+        // Check environment to determine if we should use local or production URLs
+        boolean isDevelopment = isDevelopmentEnvironment();
+
+        // Use local URL in development, otherwise use configured URL
+        this.successUrl = isDevelopment ? "http://localhost:5173/payment/success" : successUrl;
+        this.cancelUrl = isDevelopment ? "http://localhost:5173/payment/cancel" : cancelUrl;
         this.webhookUrl = webhookUrl;
         this.apiVersion = apiVersion;
         this.walletService = walletService;
+
+        log.info("Payment Service initialized with success URL: {}", this.successUrl);
+        log.info("Payment Service initialized with cancel URL: {}", this.cancelUrl);
 
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
@@ -56,6 +75,24 @@ public class PaymentServiceImpl implements PaymentService {
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("PayMongo-Version", apiVersion)
                 .build();
+    }
+
+    // Add a helper method to detect development environment
+    private boolean isDevelopmentEnvironment() {
+        String[] activeProfiles = environment.getActiveProfiles();
+        for (String profile : activeProfiles) {
+            if (profile.equals("dev") || profile.equals("development") || profile.equals("local")) {
+                return true;
+            }
+        }
+
+        // Also check if we're running on localhost
+        String serverPort = environment.getProperty("server.port");
+        if (serverPort != null && !serverPort.equals("80") && !serverPort.equals("443")) {
+            return true;
+        }
+
+        return false;
     }
 
     @Override
@@ -67,7 +104,7 @@ public class PaymentServiceImpl implements PaymentService {
             if ("card".equals(paymentType)) {
                 return createCardPaymentIntent(amountInCentavos, username);
             } else if ("gcash".equals(paymentType) || "paymaya".equals(paymentType)) {
-                return createEWalletSource(amountInCentavos, username, paymentType);
+                return createEWalletSource(amountInCentavos, username, paymentType, topUpRequest);
             } else {
                 throw new IllegalArgumentException("Unsupported payment type: " + paymentType);
             }
@@ -131,78 +168,123 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
-    private PaymentResponse createEWalletSource(long amountInCentavos, String username, String type) {
+    private PaymentResponse createEWalletSource(long amountInCentavos, String username, String type, WalletTopUpRequest topUpRequest) {
+        log.debug("Creating {} source for user {}", type, username);
         // Step 1: Create a Source
         Map<String, Object> sourceAttributes = new HashMap<>();
         sourceAttributes.put("amount", amountInCentavos);
         sourceAttributes.put("currency", "PHP");
-        sourceAttributes.put("redirect", Map.of(
-            "success", successUrl,
-            "failed", cancelUrl
-        ));
+
+        // Use redirect URLs from the request if provided, otherwise fall back to configured URLs
+        String successUrl = (topUpRequest != null && topUpRequest.getSuccessRedirectUrl() != null)
+            ? topUpRequest.getSuccessRedirectUrl()
+            : this.successUrl;
+
+        String cancelUrl = (topUpRequest != null && topUpRequest.getCancelRedirectUrl() != null)
+            ? topUpRequest.getCancelRedirectUrl()
+            : this.cancelUrl;
+
+        log.info("Using redirect URLs - success: {}, cancel: {}", successUrl, cancelUrl);
+
+        // Proper format for redirect
+        Map<String, String> redirectMap = new HashMap<>();
+        redirectMap.put("success", successUrl);
+        redirectMap.put("failed", cancelUrl);
+        sourceAttributes.put("redirect", redirectMap);
+
         sourceAttributes.put("type", type);
-        sourceAttributes.put("billing", Map.of(
-            "name", username,
-            "email", username + "@credigo.com"
-        ));
+
+        // Include complete billing information
+        Map<String, Object> billing = new HashMap<>();
+
+        // Default billing info
+        billing.put("name", "CrediGo User");
+        billing.put("email", username + "@example.com");
+        billing.put("phone", "09123456789");
+
+        // Add complete address information
+        Map<String, String> address = new HashMap<>();
+        address.put("line1", "Test Address Line 1");
+        address.put("line2", "Test Address Line 2");
+        address.put("city", "Quezon City");
+        address.put("state", "Metro Manila");
+        address.put("postal_code", "1101");
+        address.put("country", "PH");
+
+        billing.put("address", address);
+        sourceAttributes.put("billing", billing);
+
+        // Add metadata
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("credigo_username", username);
+        metadata.put("transaction_type", "wallet_topup");
+        sourceAttributes.put("metadata", metadata);
+
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("attributes", sourceAttributes);
 
         Map<String, Object> sourceRequestBody = new HashMap<>();
-        sourceRequestBody.put("data", Map.of("attributes", sourceAttributes));
+        sourceRequestBody.put("data", dataMap);
 
-        Map<String, Object> sourceResponse = webClient.post()
-                .uri("/sources")
-                .bodyValue(sourceRequestBody)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .block();
+        log.info("Sending PayMongo source request for {}: {}", type, sourceRequestBody);
 
-        if (sourceResponse == null || !(sourceResponse.get("data") instanceof Map)) {
-            throw new RuntimeException("Invalid source response from PayMongo.");
+        try {
+            log.debug("Making API call to /sources endpoint");
+            Map<String, Object> sourceResponse = webClient.post()
+                    .uri("/sources")
+                    .bodyValue(sourceRequestBody)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
+
+            if (sourceResponse == null || !(sourceResponse.get("data") instanceof Map)) {
+                log.error("Invalid source response from PayMongo: {}", sourceResponse);
+                throw new RuntimeException("Invalid source response from PayMongo.");
+            }
+
+            Map<String, Object> sourceData = (Map<String, Object>) sourceResponse.get("data");
+            String sourceId = (String) sourceData.get("id");
+            Map<String, Object> sourceDataAttributes = (Map<String, Object>) sourceData.get("attributes");
+
+            log.debug("Source created successfully with ID: {}", sourceId);
+
+            // For GCash/PayMaya, we don't create a payment immediately
+            // Instead, we return the checkout URL from the source and wait for webhook notification
+            if (sourceDataAttributes != null && sourceDataAttributes.get("redirect") instanceof Map) {
+                Map<String, Object> redirect = (Map<String, Object>) sourceDataAttributes.get("redirect");
+                String checkoutUrl = (String) redirect.get("checkout_url");
+
+                log.info("Checkout URL for {} payment: {}", type, checkoutUrl);
+
+                // Get amount from response
+                Long amount = null;
+                Object amtObj = sourceDataAttributes.get("amount");
+                if (amtObj instanceof Number) {
+                    amount = ((Number) amtObj).longValue();
+                }
+
+                log.info("IMPORTANT: After user completes payment on the {} platform, your webhook handler must listen for 'source.chargeable' event", type);
+                log.info("and then create a payment using the source ID: {}", sourceId);
+
+                return new PaymentResponse(
+                    null, // No client key for e-wallets
+                    checkoutUrl,
+                    (String) sourceDataAttributes.get("status"),
+                    sourceId,
+                    (String) sourceDataAttributes.get("currency"),
+                    amount
+                );
+            } else {
+                log.error("Missing redirect URL in PayMongo source response: {}", sourceDataAttributes);
+                throw new RuntimeException("Missing redirect URL in PayMongo source response");
+            }
+        } catch (WebClientResponseException e) {
+            log.error("PayMongo API error for {}: {} - {}", type, e.getRawStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("PayMongo API error: " + e.getRawStatusCode() + " - " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            log.error("Unexpected error creating {} source: {}", type, e.getMessage(), e);
+            throw new RuntimeException("Error creating payment source: " + e.getMessage(), e);
         }
-
-        Map<String, Object> sourceData = (Map<String, Object>) sourceResponse.get("data");
-        String sourceId = (String) sourceData.get("id");
-
-        // Step 2: Create a Payment using the Source
-        Map<String, Object> paymentAttributes = new HashMap<>();
-        paymentAttributes.put("amount", amountInCentavos);
-        paymentAttributes.put("currency", "PHP");
-        paymentAttributes.put("description", "Wallet top-up for " + username);
-        paymentAttributes.put("source", Map.of("id", sourceId, "type", "source"));
-
-        Map<String, Object> paymentRequestBody = new HashMap<>();
-        paymentRequestBody.put("data", Map.of("attributes", paymentAttributes));
-
-        Map<String, Object> paymentResponse = webClient.post()
-                .uri("/payments")
-                .bodyValue(paymentRequestBody)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .block();
-
-        if (paymentResponse == null || !(paymentResponse.get("data") instanceof Map)) {
-            throw new RuntimeException("Invalid payment response from PayMongo.");
-        }
-
-        Map<String, Object> paymentData = (Map<String, Object>) paymentResponse.get("data");
-        Map<String, Object> paymentResponseAttributes = (Map<String, Object>) paymentData.get("attributes");
-        Map<String, Object> redirectAttributes = (Map<String, Object>) ((Map<String, Object>) sourceData.get("attributes")).get("redirect");
-
-        // Convert amount to Long regardless of whether it's Integer or Long
-        Long amount = null;
-        Object amtObj = paymentResponseAttributes.get("amount");
-        if (amtObj instanceof Number) {
-            amount = ((Number) amtObj).longValue();
-        }
-
-        return new PaymentResponse(
-            null,
-            (String) redirectAttributes.get("checkout_url"),
-            (String) paymentResponseAttributes.get("status"),
-            (String) paymentData.get("id"),
-            (String) paymentResponseAttributes.get("currency"),
-            amount
-        );
     }
 
     @Override
