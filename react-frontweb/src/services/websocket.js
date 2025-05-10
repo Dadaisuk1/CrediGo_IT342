@@ -1,14 +1,15 @@
 import { Client } from '@stomp/stompjs';
 import { toast } from 'react-toastify';
 import SockJS from 'sockjs-client';
+import { API_BASE_URL } from '../config/api.config';
 
 // Polyfill global for SockJS if needed
 if (typeof window !== 'undefined' && !window.global) {
     window.global = window;
 }
 
-// Get backend URL from environment or default to localhost
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// Use the backend URL from config
+const BACKEND_URL = API_BASE_URL; // This will be 'https://credigo-it342.onrender.com' in production
 
 class WebSocketService {
     constructor() {
