@@ -2,9 +2,11 @@ import React from 'react';
 import { FaBoxOpen, FaChartBar, FaCreditCard, FaExchangeAlt, FaHome, FaIdCard, FaSignOutAlt, FaUsers, FaWallet } from 'react-icons/fa';
 import { useLocation, useNavigate } from 'react-router-dom';
 import credigoLogo from '../assets/images/credigo_icon.svg';
+import { useAuth } from '../context/AuthContext';
 import ConfirmModal from './ConfirmModal';
 
 const AdminSidebar = ({ sidebarOpen = true }) => {
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname.split('/').pop();
@@ -13,8 +15,7 @@ const AdminSidebar = ({ sidebarOpen = true }) => {
   const handleLogout = () => setShowLogoutModal(true);
   const handleLogoutConfirm = () => {
     setShowLogoutModal(false);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    logout();
     navigate('/login');
   };
   const handleLogoutCancel = () => setShowLogoutModal(false);

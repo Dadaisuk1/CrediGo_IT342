@@ -34,9 +34,10 @@ function Navbar() {
     ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(walletBalance)
     : '---';
 
-  // Handle wallet click
-  const handleBalanceClick = () => {
-    navigate('/wallet');
+  // Enhance logout handling
+  const handleLogout = () => {
+    logout();
+    navigate('/login'); // Navigate to login page after logout
   };
 
   // Toggle games dropdown
@@ -153,7 +154,7 @@ function Navbar() {
                 <UserMenu
                   username={user?.username}
                   walletBalance={walletBalance}
-                  onLogout={logout}
+                  onLogout={handleLogout}
                   onSettings={() => navigate('/settings')}
                 />
               </motion.div>
