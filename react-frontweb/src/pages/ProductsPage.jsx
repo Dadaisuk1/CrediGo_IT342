@@ -15,7 +15,7 @@ const ProductCard = ({ product, onBuyClick, isInWishlist, onWishlistChange }) =>
     if (e.target.tagName.toLowerCase() === 'button' || e.target.closest('button')) {
       return;
     }
-    navigate(`/home/products/${product.id}`);
+    navigate(`/products/${product.id}`);
   };
 
   return (

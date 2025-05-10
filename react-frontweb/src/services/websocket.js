@@ -2,6 +2,11 @@ import { Client } from '@stomp/stompjs';
 import { toast } from 'react-toastify';
 import SockJS from 'sockjs-client';
 
+// Polyfill global for SockJS if needed
+if (typeof window !== 'undefined' && !window.global) {
+    window.global = window;
+}
+
 // Get backend URL from environment or default to localhost
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -23,80 +28,85 @@ class WebSocketService {
         this.notificationCallback = onNotification;
         this.connectionAttempts = 0;
 
-        this.client = new Client({
-            webSocketFactory: () => new SockJS(`${BACKEND_URL}/ws`),
-            onConnect: () => {
-                this.connected = true;
-                this.connectionAttempts = 0;
-                console.log('Connected to WebSocket');
-
-                // Subscribe to user-specific notifications
-                this.client.subscribe(`/user/${userId}/topic/notifications`, (message) => {
-                    try {
-                        const notification = JSON.parse(message.body);
-                        if (this.notificationCallback) {
-                            this.notificationCallback(notification);
-                        }
-
-                        // Show toast based on notification type
-                        const toastType = notification.type?.toLowerCase() || 'info';
-                        if (toast[toastType]) {
-                            toast[toastType](notification.message);
-                        } else {
-                            toast.info(notification.message);
-                        }
-                    } catch (error) {
-                        console.error('Error processing notification:', error);
-                    }
-                });
-
-                // Subscribe to global notifications
-                this.client.subscribe('/topic/global', (message) => {
-                    try {
-                        const notification = JSON.parse(message.body);
-                        if (this.notificationCallback) {
-                            this.notificationCallback(notification);
-                        }
-
-                        // Show toast based on notification type
-                        const toastType = notification.type?.toLowerCase() || 'info';
-                        if (toast[toastType]) {
-                            toast[toastType](notification.message);
-                        } else {
-                            toast.info(notification.message);
-                        }
-                    } catch (error) {
-                        console.error('Error processing global notification:', error);
-                    }
-                });
-            },
-            onDisconnect: () => {
-                this.connected = false;
-                console.log('Disconnected from WebSocket');
-            },
-            onError: (error) => {
-                console.error('WebSocket Error:', error);
-                this.connected = false;
-
-                // Only show error toast on first attempt
-                if (this.connectionAttempts === 0) {
-                    toast.error('Notification service connection error');
-                }
-
-                this.connectionAttempts++;
-                if (this.connectionAttempts < this.maxReconnectAttempts) {
-                    console.log(`Attempting to reconnect (${this.connectionAttempts}/${this.maxReconnectAttempts})...`);
-                }
-            },
-            reconnectDelay: 5000,
-            heartbeatIncoming: 4000,
-            heartbeatOutgoing: 4000
-        });
-
         try {
-            this.client.activate();
+            this.client = new Client({
+                webSocketFactory: () => new SockJS(`${BACKEND_URL}/ws`),
+                onConnect: () => {
+                    this.connected = true;
+                    this.connectionAttempts = 0;
+                    console.log('Connected to WebSocket');
+
+                    // Subscribe to user-specific notifications
+                    this.client.subscribe(`/user/${userId}/topic/notifications`, (message) => {
+                        try {
+                            const notification = JSON.parse(message.body);
+                            if (this.notificationCallback) {
+                                this.notificationCallback(notification);
+                            }
+
+                            // Show toast based on notification type
+                            const toastType = notification.type?.toLowerCase() || 'info';
+                            if (toast[toastType]) {
+                                toast[toastType](notification.message);
+                            } else {
+                                toast.info(notification.message);
+                            }
+                        } catch (error) {
+                            console.error('Error processing notification:', error);
+                        }
+                    });
+
+                    // Subscribe to global notifications
+                    this.client.subscribe('/topic/global', (message) => {
+                        try {
+                            const notification = JSON.parse(message.body);
+                            if (this.notificationCallback) {
+                                this.notificationCallback(notification);
+                            }
+
+                            // Show toast based on notification type
+                            const toastType = notification.type?.toLowerCase() || 'info';
+                            if (toast[toastType]) {
+                                toast[toastType](notification.message);
+                            } else {
+                                toast.info(notification.message);
+                            }
+                        } catch (error) {
+                            console.error('Error processing global notification:', error);
+                        }
+                    });
+                },
+                onDisconnect: () => {
+                    this.connected = false;
+                    console.log('Disconnected from WebSocket');
+                },
+                onError: (error) => {
+                    console.error('WebSocket Error:', error);
+                    this.connected = false;
+
+                    // Only show error toast on first attempt
+                    if (this.connectionAttempts === 0) {
+                        toast.error('Notification service connection error');
+                    }
+
+                    this.connectionAttempts++;
+                    if (this.connectionAttempts < this.maxReconnectAttempts) {
+                        console.log(`Attempting to reconnect (${this.connectionAttempts}/${this.maxReconnectAttempts})...`);
+                    }
+                },
+                reconnectDelay: 5000,
+                heartbeatIncoming: 4000,
+                heartbeatOutgoing: 4000
+            });
+
+            try {
+                this.client.activate();
+            } catch (error) {
+                console.error('Failed to activate WebSocket client:', error);
+            }
         } catch (error) {
-            console.error('Failed to activate WebSocket client:', error);
+            console.error('Error creating STOMP client:', error);
+            toast.error('Cannot initialize notification service');
         }
     }
 

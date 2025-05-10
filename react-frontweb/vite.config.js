@@ -13,6 +13,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    global: "window", // Polyfill for libraries that expect 'global' (like SockJS)
+  },
   server: {
     port: 5173,
     open: true,

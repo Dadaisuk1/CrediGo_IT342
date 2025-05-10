@@ -14,7 +14,7 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
     'X-Frontend-Url': FRONTEND_URL // Add custom header for PayMongo redirects
   },
-  timeout: 10000, // 10 seconds timeout
+  timeout: 30000, // Increased from 10s to 30s to prevent timeout issues
 });
 
 // Request interceptor to add JWT token to Authorization header
@@ -59,6 +59,8 @@ apiClient.interceptors.response.use(
       } else if (status >= 500) {
         toast.error('Server error. Please try again later.');
       }
+    } else if (error.code === 'ECONNABORTED') {
+      toast.error('Request timed out. The server is taking too long to respond.');
     } else {
       toast.error('Network error. Please check your connection.');
     }
@@ -93,7 +95,10 @@ export const registerUser = (userData) => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const getWallet = () => {
-  return apiClient.get('/api/wallet/me');
+  // Use a longer timeout for wallet operations which might be slower
+  return apiClient.get('/api/wallet/me', {
+    timeout: 45000, // 45 seconds timeout for wallet requests
+  });
 };
 
 /**
@@ -102,7 +107,9 @@ export const getWallet = () => {
  * @returns {Promise<axios.Response>} The Axios response object.
  */
 export const createWalletTopUpIntent = (paymentData) => {
-  return apiClient.post('/api/payments/wallet/topup', paymentData);
+  return apiClient.post('/api/payments/wallet/topup', paymentData, {
+    timeout: 45000, // 45 seconds timeout for payment requests
+  });
 };
 
 /**
@@ -111,7 +118,9 @@ export const createWalletTopUpIntent = (paymentData) => {
  * @returns {Promise<axios.Response>} The Axios response object with payment status.
  */
 export const checkPaymentStatus = (paymentIntentId) => {
-  return apiClient.get(`/api/payments/status/${paymentIntentId}`);
+  return apiClient.get(`/api/payments/status/${paymentIntentId}`, {
+    timeout: 45000, // 45 seconds timeout for payment status checks
+  });
 };
 
 // --- Product/Platform API Calls ---

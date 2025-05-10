@@ -112,7 +112,7 @@ function WishlistPage() {
                     Remove
                   </button>
                   <Link
-                    to={`/home/products/${item.productId}`}
+                    to={`/products/${item.productId}`}
                     className="bg-primary text-white py-1 px-4 rounded text-sm hover:bg-primary-dark transition-colors"
                   >
                     View Details

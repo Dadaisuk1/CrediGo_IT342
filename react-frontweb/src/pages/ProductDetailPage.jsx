@@ -131,7 +131,7 @@ function ProductDetailPage() {
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/home/products/${productId}` } });
+      navigate('/login', { state: { from: `/products/${productId}` } });
       return;
     }
 

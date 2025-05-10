@@ -25,6 +25,8 @@ const OAuth2RedirectHandler = lazy(() => import('./pages/OAuth2RedirectHandler')
 const HomePage = lazy(() => import('./pages/HomePage'));
 const ProductsPage = lazy(() => import('./pages/ProductsPage'));
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'));
+const GameCatalogPage = lazy(() => import('./pages/GameCatalogPage'));
+const GameDetailPage = lazy(() => import('./pages/GameDetailPage'));
 const WalletPage = lazy(() => import('./pages/WalletPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const WishlistPage = lazy(() => import('./pages/WishlistPage'));
@@ -80,15 +82,28 @@ function App() {
         <Route path="/not-authorized" element={<NotAuthorized />} />
         <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
 
-        {/* Protected User Routes */}
+        {/* Protected User Routes - Wrapped in ProtectedLayout */}
         <Route path="/home" element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/" replace />}>
           <Route index element={<HomePage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="products/:productId" element={<ProductDetailPage />} />
+          <Route path="games" element={<GameCatalogPage />} />
+          <Route path="games/:gameId" element={<GameDetailPage />} />
           <Route path="wallet" element={<WalletPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="wishlist" element={<WishlistPage />} />
           <Route path="about" element={<AboutPage />} />
+        </Route>
+
+        {/* Direct routes (shorter URL) - Also wrapped in ProtectedLayout */}
+        <Route path="/" element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/" replace />}>
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="products/:productId" element={<ProductDetailPage />} />
+          <Route path="games" element={<GameCatalogPage />} />
+          <Route path="games/:gameId" element={<GameDetailPage />} />
+          <Route path="wallet" element={<WalletPage />} />
+          <Route path="history" element={<HistoryPage />} />
+          <Route path="wishlist" element={<WishlistPage />} />
         </Route>
 
         {/* Admin Routes */}
