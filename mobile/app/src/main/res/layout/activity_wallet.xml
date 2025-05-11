@@ -269,6 +269,15 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Payment Option Container -->
+            <FrameLayout
+                android:id="@+id/payment_option_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

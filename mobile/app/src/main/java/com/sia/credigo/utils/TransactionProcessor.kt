@@ -71,10 +71,16 @@ object TransactionProcessor {
         // Process the purchase
         lifecycleOwner.lifecycleScope.launch {
             try {
-                // 1. Call backend purchase endpoint using TransactionApi instead of WalletApi
+                // 1. Get platform details first to ensure we have the correct name
+                val platform = withContext(Dispatchers.IO) {
+                    platformViewModel.getPlatformById(product.platformId)
+                }
+                val platformName = platform?.name ?: "Unknown Platform"
+                
+                // 2. Call backend purchase endpoint
                 val result = withContext(Dispatchers.IO) {
                     try {
-                        // Create PurchaseRequest object instead of JSON
+                        // Create PurchaseRequest object
                         val purchaseRequest = PurchaseRequest(
                             productId = product.id,
                             quantity = 1,
@@ -105,16 +111,13 @@ object TransactionProcessor {
                     return@launch
                 }
                 
-                // 2. Get platform/category details for receipt
-                val platform = withContext(Dispatchers.IO) {
-                    platformViewModel.getPlatformById(product.platformId)
-                }
-                val platformName = platform?.name ?: "Unknown"
+                // Use the transaction ID from the response
+                val transactionId = result.transactionId
                 
                 // 3. Generate game code
                 val gameCode = generateGameCode()
                 
-                // 4. Create receipt mail
+                // 4. Create receipt mail with correct platform name
                 val receiptMail = Mail(
                     userid = userId,
                     subject = "Purchase of ${platformName}'s ${product.name}",
@@ -125,6 +128,8 @@ Here's the code for your game:
 Code: ${gameCode}
 
 Use this code to top up your account!
+
+Transaction ID: ${transactionId}
 
 Best regards,
 — The CrediGo Team""",

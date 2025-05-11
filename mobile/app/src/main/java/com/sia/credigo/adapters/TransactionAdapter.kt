@@ -23,7 +23,6 @@ class TransactionAdapter(
 ) : RecyclerView.Adapter<TransactionAdapter.TransactionViewHolder>() {
 
     inner class TransactionViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val productCategoryView: TextView = view.findViewById(R.id.tv_product_category)
         val productNameView: TextView = view.findViewById(R.id.tv_product_name)
         val priceView: TextView = view.findViewById(R.id.tv_price)
         val statusView: TextView? = view.findViewById(R.id.tv_status)
@@ -47,26 +46,15 @@ class TransactionAdapter(
     override fun onBindViewHolder(holder: TransactionViewHolder, position: Int) {
         val transaction = transactions[position]
 
-        // Parse the transaction type to extract product name and category if possible
+        // Parse the transaction type to extract product name
         val parts = transaction.type.split(" - ")
 
         if (parts.size > 1) {
-            // If the transaction type contains a separator, use that information
+            // If the transaction type contains a separator, use the first part as product name
             holder.productNameView.text = parts[0]
-            holder.productCategoryView.text = parts[1]
         } else {
-            // If no separator, just use the type as product name and set a default category
+            // If no separator, just use the type as product name
             holder.productNameView.text = transaction.type
-            holder.productCategoryView.text = "Game Purchase"
-        }
-
-        // Try to format and display timestamp if available
-        try {
-            val dateFormat = SimpleDateFormat("MM/dd/yy", Locale.getDefault())
-            val dateInfo = "• ${dateFormat.format(Date(transaction.timestamp))}"
-            holder.productCategoryView.text = "${holder.productCategoryView.text} $dateInfo"
-        } catch (e: Exception) {
-            // Ignore timestamp formatting errors
         }
 
         // Format price with 2 decimal places

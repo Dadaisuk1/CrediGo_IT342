@@ -114,6 +114,34 @@
                 android:backgroundTint="@color/button_background"
                 android:textColor="#FFFFFF" />
 
+            <!-- Or Login with Google -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Or Login in with"
+                android:textSize="16sp"
+                android:textColor="@color/black"
+                android:gravity="center"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="15dp" />
+
+            <!-- Google Login Button -->
+            <LinearLayout
+                android:id="@+id/btn_google_login"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/edittext_border"
+                android:padding="8dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:src="@drawable/logo_google" />
+            </LinearLayout>
+
             <!-- Redirect to Register -->
             <TextView
                 android:id="@+id/txt_register"
@@ -123,7 +151,7 @@
                 android:textSize="14sp"
                 android:textColor="@color/black"
                 android:layout_gravity="center"
-                android:paddingTop="10dp"
+                android:paddingTop="20dp"
                 android:paddingBottom="10dp"
                 android:gravity="center"
                 android:clickable="true"

@@ -10,10 +10,14 @@
     android:padding="20dp"
       android:background="@color/screen_background">
 
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
     <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-
+            android:layout_height="wrap_content"
             android:orientation="vertical">
         <!--        title-->
         <TextView
@@ -29,8 +33,7 @@
 
         <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-
+                android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="15dp">
 
@@ -253,6 +256,34 @@
                     android:textColor="#FFFFFF"
                     />
 
+            <!-- Or Register with Google -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Or Login in with"
+                android:textSize="16sp"
+                android:textColor="@color/black"
+                android:gravity="center"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="15dp" />
+
+            <!-- Google Register Button -->
+            <LinearLayout
+                android:id="@+id/btn_google_register"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/edittext_border"
+                android:padding="8dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:src="@drawable/logo_google" />
+            </LinearLayout>
+
             <!-- Diagnostic button (can be removed in production) -->
             <Button
                     android:id="@+id/btn_diagnose_db"
@@ -283,9 +314,5 @@
 
         </LinearLayout>
     </LinearLayout>
-
-
-
-
-
+    </ScrollView>
   </androidx.appcompat.widget.LinearLayoutCompat>

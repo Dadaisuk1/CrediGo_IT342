@@ -9,6 +9,8 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
@@ -54,6 +56,7 @@ class RegisterActivity : AppCompatActivity() {
         btnRegister = findViewById(R.id.btn_register)
         val loginText = findViewById<TextView>(R.id.txt_login)
         val btnDiagnoseDb = findViewById<Button>(R.id.btn_diagnose_db)
+        val btnGoogleRegister = findViewById<LinearLayout>(R.id.btn_google_register)
 
         // Error text views
         val emailError = findViewById<TextView>(R.id.txt_email_error)
@@ -323,11 +326,21 @@ class RegisterActivity : AppCompatActivity() {
             }
         }
 
+        // Google register button click
+        btnGoogleRegister.setOnClickListener {
+            // For now, just show a toast indicating this feature is not implemented
+            Toast.makeText(
+                this@RegisterActivity,
+                "Google registration will be implemented in a future update",
+                Toast.LENGTH_SHORT
+            ).show()
+            
+            // TODO: Implement Google SignIn API integration
+        }
+
         loginText.setOnClickListener {
             startActivity(Intent(this, LoginActivity::class.java))
         }
-
-
     }
 
     private fun validatePassword(password: String, iconMinLength: ImageView, iconLettersNumbersSpecial: ImageView) {

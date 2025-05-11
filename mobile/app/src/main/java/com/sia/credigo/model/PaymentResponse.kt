@@ -3,7 +3,8 @@ package com.sia.credigo.model
 import com.google.gson.annotations.SerializedName
 
 /**
- * Represents a response from the PayMongo payment API
+ * Data class for PayMongo payment responses
+ * Handles different response formats from the API
  */
 data class PaymentResponse(
     // PayMongo checkout URL

@@ -15,6 +15,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.sia.credigo.app.CredigoApp
 import com.sia.credigo.fragments.NavbarFragment
+import com.sia.credigo.fragments.CardOptionFragment
+import com.sia.credigo.fragments.EWalletOptionFragment
 import com.sia.credigo.manager.WalletManager
 import com.sia.credigo.manager.WalletState
 import com.sia.credigo.model.Transaction
@@ -23,6 +25,7 @@ import com.sia.credigo.model.User
 import com.sia.credigo.model.Wallet
 import com.sia.credigo.model.WalletTopUpRequest
 import com.sia.credigo.model.PaymentResponse
+import com.sia.credigo.network.RetrofitClient
 import com.sia.credigo.viewmodel.TransactionViewModel
 import com.sia.credigo.viewmodel.UserViewModel
 import com.sia.credigo.viewmodel.WalletViewModel
@@ -64,6 +67,13 @@ class WalletActivity : AppCompatActivity() {
     private lateinit var mayaOption: LinearLayout
     private lateinit var creditDebitOption: LinearLayout
     private lateinit var grabPayOption: LinearLayout
+
+    // Added: Fragment container
+    private lateinit var paymentOptionContainer: FrameLayout
+
+    // Added: Fragment references
+    private var cardOptionFragment: CardOptionFragment? = null
+    private var eWalletOptionFragment: EWalletOptionFragment? = null
 
     // Menu items
     private lateinit var transactionsMenu: LinearLayout
@@ -575,6 +585,9 @@ class WalletActivity : AppCompatActivity() {
         mayaOption = findViewById(R.id.option_maya)
         creditDebitOption = findViewById(R.id.option_visa)
         grabPayOption = findViewById(R.id.option_mastercard)
+        
+        // Payment option container
+        paymentOptionContainer = findViewById(R.id.payment_option_container)
 
         // Menu items
         transactionsMenu = findViewById(R.id.menu_transactions)
@@ -600,18 +613,26 @@ class WalletActivity : AppCompatActivity() {
         // Payment option clicks
         gcashOption.setOnClickListener {
             selectPaymentOption("GCash", gcashOption)
+            // Show e-wallet fragment for GCash
+            showEWalletFragment("GCash")
         }
 
         mayaOption.setOnClickListener {
             selectPaymentOption("Maya", mayaOption)
+            // Show e-wallet fragment for Maya
+            showEWalletFragment("Maya")
         }
 
         creditDebitOption.setOnClickListener {
             selectPaymentOption("Credit Debit", creditDebitOption)
+            // Show card fragment
+            showCardFragment()
         }
 
         grabPayOption.setOnClickListener {
             selectPaymentOption("Grab Pay", grabPayOption)
+            // Show e-wallet fragment for GrabPay
+            showEWalletFragment("GrabPay")
         }
 
         // Cash in button click
@@ -621,8 +642,11 @@ class WalletActivity : AppCompatActivity() {
                 try {
                     val amount = BigDecimal(amountText)
                     if (amount > BigDecimal.ZERO) {
-                        // Process the deposit with proper PayMongo integration
-                        processPayMongoDeposit(amount, selectedPaymentOption!!)
+                        // Validate payment option fields
+                        if (validatePaymentFields()) {
+                            // Process the deposit with proper PayMongo integration
+                            processPayMongoDeposit(amount, selectedPaymentOption!!)
+                        }
                     } else {
                         Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
                     }
@@ -647,6 +671,122 @@ class WalletActivity : AppCompatActivity() {
         depositHistoryMenu.setOnClickListener {
             startActivity(Intent(this, DepositHistoryActivity::class.java))
         }
+    }
+
+    /**
+     * Validate all fields for the current payment option
+     */
+    private fun validatePaymentFields(): Boolean {
+        return when (selectedPaymentOption) {
+            "Credit Debit" -> cardOptionFragment?.validateAllFields() ?: false
+            "GCash", "Maya", "Grab Pay" -> eWalletOptionFragment?.validateAllFields() ?: false
+            else -> false
+        }
+    }
+
+    /**
+     * Show card payment fragment
+     */
+    private fun showCardFragment() {
+        if (cardOptionFragment == null) {
+            cardOptionFragment = CardOptionFragment()
+        }
+        
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.payment_option_container, cardOptionFragment!!)
+            .commit()
+        
+        paymentOptionContainer.visibility = View.VISIBLE
+    }
+
+    /**
+     * Show e-wallet payment fragment
+     */
+    private fun showEWalletFragment(walletType: String) {
+        if (eWalletOptionFragment == null) {
+            eWalletOptionFragment = EWalletOptionFragment.newInstance(walletType)
+        } else {
+            eWalletOptionFragment?.setWalletType(walletType)
+        }
+        
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.payment_option_container, eWalletOptionFragment!!)
+            .commit()
+        
+        paymentOptionContainer.visibility = View.VISIBLE
+    }
+
+    private fun selectPaymentOption(option: String, view: LinearLayout) {
+        // Deselect previous option
+        selectedPaymentView?.setBackgroundResource(R.drawable.item_background)
+
+        // Select new option
+        selectedPaymentOption = option
+        selectedPaymentView = view
+        view.setBackgroundResource(R.drawable.item_wallet_option_selected)
+
+        // Hide selection error
+        selectionErrorText.visibility = View.INVISIBLE
+
+        // Enable cash in button if amount is entered
+        checkCashInButtonStatus()
+    }
+
+    private fun deselectAllPaymentOptions() {
+        // Reset all payment options
+        val options = listOf(gcashOption, mayaOption, creditDebitOption, grabPayOption)
+        for (option in options) {
+            option.setBackgroundResource(R.drawable.item_background)
+        }
+
+        selectedPaymentOption = null
+        selectedPaymentView = null
+        
+        // Hide any payment option fragments
+        paymentOptionContainer.visibility = View.GONE
+
+        // Show selection error if amount is entered
+        if (amountEditText.text.toString().isNotEmpty()) {
+            selectionErrorText.visibility = View.VISIBLE
+        }
+
+        // Disable cash in button
+        cashInButton.isEnabled = false
+    }
+
+    private fun checkCashInButtonStatus() {
+        val amountText = amountEditText.text.toString()
+
+        val isEnabled = amountText.isNotEmpty() &&
+                selectedPaymentOption != null &&
+                limitWarningText.visibility != View.VISIBLE
+
+        cashInButton.isEnabled = isEnabled
+
+        // Change button appearance based on enabled state
+        if (isEnabled) {
+            cashInButton.alpha = 1.0f
+        } else {
+            cashInButton.alpha = 0.5f
+        }
+    }
+
+    private fun redirectToLogin(message: String) {
+        // Show message to user
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        
+        // Reset UI state
+        showProcessingLayout(false)
+        
+        // Logout user
+        val app = application as CredigoApp
+        app.logout()
+        
+        // Navigate to login screen
+        val intent = Intent(this, LoginActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
     }
 
     private fun processPayMongoDeposit(amount: BigDecimal, paymentMethod: String) {
@@ -678,7 +818,74 @@ class WalletActivity : AppCompatActivity() {
                 
                 try {
                     Log.d(TAG, "First attempting PayMongo checkout flow...")
-                    walletViewModel.createTopUpPaymentIntent(amount)
+                    
+                    when {
+                        paymentMethod == "Credit Debit" && cardOptionFragment != null -> {
+                            // Get card details
+                            val cardDetails = cardOptionFragment!!.getCardDetails()
+                            
+                            // Create payment request
+                            val cardPaymentRequest = mapOf(
+                                "amount" to amount.toString(),
+                                "cardNumber" to cardDetails.cardNumber,
+                                "expiryMonth" to cardDetails.month,
+                                "expiryYear" to cardDetails.year,
+                                "cvc" to cardDetails.cvc,
+                                "name" to cardDetails.cardHolderName
+                            )
+                            
+                            // Use card payment API
+                            val response = withContext(Dispatchers.IO) {
+                                RetrofitClient.walletService.createCardPayment(cardPaymentRequest)
+                            }
+                            
+                            if (response.isSuccessful) {
+                                // Handle successful response
+                                val paymentResponse = response.body()
+                                if (paymentResponse != null) {
+                                    _paymongoResponse.postValue(paymentResponse)
+                                } else {
+                                    throw Exception("Empty response from payment API")
+                                }
+                            } else {
+                                throw Exception("Card payment API error: ${response.code()} - ${response.message()}")
+                            }
+                        }
+                        
+                        (paymentMethod == "GCash" || paymentMethod == "Maya" || paymentMethod == "Grab Pay") && eWalletOptionFragment != null -> {
+                            // Get phone number
+                            val phoneNumber = eWalletOptionFragment!!.getPhoneNumber()
+                            
+                            // Create payment request
+                            val eWalletPaymentRequest = mapOf(
+                                "amount" to amount.toString(),
+                                "phoneNumber" to phoneNumber,
+                                "provider" to payMongoMethod.toLowerCase()
+                            )
+                            
+                            // Use e-wallet payment API
+                            val response = withContext(Dispatchers.IO) {
+                                RetrofitClient.walletService.createEWalletPayment(eWalletPaymentRequest)
+                            }
+                            
+                            if (response.isSuccessful) {
+                                // Handle successful response
+                                val paymentResponse = response.body()
+                                if (paymentResponse != null) {
+                                    _paymongoResponse.postValue(paymentResponse)
+                                } else {
+                                    throw Exception("Empty response from payment API")
+                                }
+                            } else {
+                                throw Exception("E-wallet payment API error: ${response.code()} - ${response.message()}")
+                            }
+                        }
+                        
+                        else -> {
+                            // Fallback to original implementation
+                            walletViewModel.createTopUpPaymentIntent(amount)
+                        }
+                    }
                 } catch (e: Exception) {
                     // If the payment intent creation fails with authentication error,
                     // try direct topup as fallback (for testing purposes)
@@ -782,76 +989,6 @@ class WalletActivity : AppCompatActivity() {
                 }
             }
         })
-    }
-
-    private fun selectPaymentOption(option: String, view: LinearLayout) {
-        // Deselect previous option
-        selectedPaymentView?.setBackgroundResource(R.drawable.item_background)
-
-        // Select new option
-        selectedPaymentOption = option
-        selectedPaymentView = view
-        view.setBackgroundResource(R.drawable.item_wallet_option_selected)
-
-        // Hide selection error
-        selectionErrorText.visibility = View.INVISIBLE
-
-        // Enable cash in button if amount is entered
-        checkCashInButtonStatus()
-    }
-
-    private fun deselectAllPaymentOptions() {
-        // Reset all payment options
-        val options = listOf(gcashOption, mayaOption, creditDebitOption, grabPayOption)
-        for (option in options) {
-            option.setBackgroundResource(R.drawable.item_background)
-        }
-
-        selectedPaymentOption = null
-        selectedPaymentView = null
-
-        // Show selection error if amount is entered
-        if (amountEditText.text.toString().isNotEmpty()) {
-            selectionErrorText.visibility = View.VISIBLE
-        }
-
-        // Disable cash in button
-        cashInButton.isEnabled = false
-    }
-
-    private fun checkCashInButtonStatus() {
-        val amountText = amountEditText.text.toString()
-
-        val isEnabled = amountText.isNotEmpty() &&
-                selectedPaymentOption != null &&
-                limitWarningText.visibility != View.VISIBLE
-
-        cashInButton.isEnabled = isEnabled
-
-        // Change button appearance based on enabled state
-        if (isEnabled) {
-            cashInButton.alpha = 1.0f
-        } else {
-            cashInButton.alpha = 0.5f
-        }
-    }
-
-    private fun redirectToLogin(message: String) {
-        // Show message to user
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-        
-        // Reset UI state
-        showProcessingLayout(false)
-        
-        // Logout user
-        val app = application as CredigoApp
-        app.logout()
-        
-        // Navigate to login screen
-        val intent = Intent(this, LoginActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
-        finish()
     }
 
     override fun onDestroy() {

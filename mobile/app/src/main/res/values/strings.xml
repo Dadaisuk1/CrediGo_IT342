@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Credigo</string>
+    <string name="payment_instruction">
+        1. Enter your GCash-registered mobile number\n
+        2. Click \"Top-up Now\" to generate a payment link\n
+        3. You\'ll be redirected to GCash to complete the payment\n
+        4. After successful payment, your CrediGo wallet will be credited
+    </string>
 </resources>

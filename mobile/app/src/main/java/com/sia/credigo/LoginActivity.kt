@@ -10,6 +10,7 @@ import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -75,6 +76,7 @@ class LoginActivity : AppCompatActivity() {
         txtEmailError = findViewById(R.id.txt_email_error)
         txtPasswordError = findViewById(R.id.txt_password_error)
         val txtRegister = findViewById<TextView>(R.id.txt_register)
+        val btnGoogleLogin = findViewById<LinearLayout>(R.id.btn_google_login)
 
         // Initially hide error messages
         txtEmailError.text = ""
@@ -243,6 +245,18 @@ class LoginActivity : AppCompatActivity() {
                     btnLogin.text = "Login"
                 }
             }
+        }
+
+        // Google login button click
+        btnGoogleLogin.setOnClickListener {
+            // For now, just show a toast indicating this feature is not implemented
+            Toast.makeText(
+                this@LoginActivity,
+                "Google login will be implemented in a future update",
+                Toast.LENGTH_SHORT
+            ).show()
+            
+            // TODO: Implement Google SignIn API integration
         }
 
         // Redirect to register page
