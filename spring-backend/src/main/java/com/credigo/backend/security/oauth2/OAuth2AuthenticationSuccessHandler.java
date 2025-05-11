@@ -26,7 +26,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     // private String frontendUrl;
 
     // Hardcode the frontend URL for local development
-    private final String frontendUrl = "http://localhost:5173";
+    private final String frontendUrl = "https://credi-go-it-342.vercel.app";
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
