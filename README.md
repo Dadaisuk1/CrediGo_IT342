@@ -74,7 +74,7 @@
 ### 🔗Links
 
 <h6>
-  Just click the icons to view Diagrams, Figma, and Gantt Chart:
+  Just click the icons to view Diagrams, Figma, Gantt Chart, and Documents:
 </h6>
 <div style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
   <a href="#" style="text-decoration: none;">
