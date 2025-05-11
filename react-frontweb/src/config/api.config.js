@@ -6,8 +6,7 @@ export const API_BASE_URL = isDevelopment
     : 'https://credigo-it342.onrender.com';
 
 export const FRONTEND_URL = isDevelopment
-    ? 'http://localhost:5173'
-    : 'https://credi-go-it-342.vercel.app';
+    'https://credi-go-it-342.vercel.app';
 
 // When ready to deploy, uncomment these:
 /*
