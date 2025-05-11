@@ -124,8 +124,8 @@ export default function PaymentSuccess() {
                 </div>
               )}
             </div>
-            <Button onClick={() => navigate('/dashboard')} className="mt-4">
-              Return to Dashboard
+            <Button onClick={() => navigate('/home')} className="mt-4">
+              Return
             </Button>
           </div>
         ) : (
@@ -162,7 +162,7 @@ export default function PaymentSuccess() {
             </div>
 
             <div className="pt-4">
-              <Button onClick={() => navigate('/Home')} className="w-full">
+              <Button onClick={() => navigate('/home')} className="w-full">
                 Return
               </Button>
             </div>
