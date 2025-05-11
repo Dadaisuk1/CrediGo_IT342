@@ -162,8 +162,8 @@ export default function PaymentSuccess() {
             </div>
 
             <div className="pt-4">
-              <Button onClick={() => navigate('/dashboard')} className="w-full">
-                Return to Dashboard
+              <Button onClick={() => navigate('/Home')} className="w-full">
+                Return
               </Button>
             </div>
 
