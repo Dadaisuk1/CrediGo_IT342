@@ -6,7 +6,9 @@ target/
 .project
 .settings/
 .gradle/
+!android-mobile/.gradle/
 build/
+!android-mobile/build/
 out/
 *.jar
 *.war
@@ -23,7 +25,9 @@ build/
 # Android / Kotlin / Gradle
 *.iml
 .gradle/
+!android-mobile/.gradle/
 local.properties
+!android-mobile/local.properties
 .idea/caches/
 .idea/libraries/
 .idea/modules.xml
@@ -31,6 +35,7 @@ local.properties
 .idea/navEditor.xml
 .idea/assetWizardSettings.xml
 build/
+!android-mobile/build/
 captures/
 *.apk
 *.aab
@@ -40,6 +45,7 @@ captures/
 
 # IDE specific files (IntelliJ, VSCode, Eclipse)
 .idea/
+!android-mobile/.idea/
 .vscode/
 *.swp
 *~
